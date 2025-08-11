@@ -1,0 +1,114 @@
+[START] Training at Mon 28 Jul 23:05:37 BST 2025 on GPU 9
+Total graphs -> train: 107628, val: 13449, test: 13487
+Epoch 1/50 - Train Acc: 58.46%, Val Acc: 61.96%, Test Acc: 60.85%
+Epoch 2/50 - Train Acc: 61.03%, Val Acc: 63.06%, Test Acc: 61.62%
+Epoch 3/50 - Train Acc: 61.48%, Val Acc: 62.76%, Test Acc: 60.97%
+Epoch 4/50 - Train Acc: 61.80%, Val Acc: 63.37%, Test Acc: 61.75%
+Epoch 5/50 - Train Acc: 61.94%, Val Acc: 63.34%, Test Acc: 62.51%
+Epoch 6/50 - Train Acc: 62.37%, Val Acc: 63.31%, Test Acc: 62.18%
+Epoch 7/50 - Train Acc: 62.42%, Val Acc: 63.54%, Test Acc: 62.62%
+Epoch 8/50 - Train Acc: 62.46%, Val Acc: 63.48%, Test Acc: 62.69%
+Epoch 9/50 - Train Acc: 62.60%, Val Acc: 63.71%, Test Acc: 62.82%
+Epoch 10/50 - Train Acc: 62.67%, Val Acc: 63.15%, Test Acc: 62.52%
+Epoch 11/50 - Train Acc: 62.73%, Val Acc: 63.68%, Test Acc: 62.49%
+Epoch 12/50 - Train Acc: 62.72%, Val Acc: 62.82%, Test Acc: 62.03%
+Epoch 13/50 - Train Acc: 63.18%, Val Acc: 63.71%, Test Acc: 62.62%
+Epoch 14/50 - Train Acc: 63.23%, Val Acc: 63.48%, Test Acc: 62.85%
+Epoch 15/50 - Train Acc: 63.35%, Val Acc: 63.87%, Test Acc: 62.79%
+Epoch 16/50 - Train Acc: 63.43%, Val Acc: 64.03%, Test Acc: 63.24%
+Epoch 17/50 - Train Acc: 63.47%, Val Acc: 63.80%, Test Acc: 62.90%
+Epoch 18/50 - Train Acc: 63.47%, Val Acc: 63.38%, Test Acc: 62.66%
+Epoch 19/50 - Train Acc: 63.34%, Val Acc: 63.86%, Test Acc: 62.78%
+Epoch 20/50 - Train Acc: 63.69%, Val Acc: 64.37%, Test Acc: 63.23%
+Epoch 21/50 - Train Acc: 63.81%, Val Acc: 64.10%, Test Acc: 63.11%
+Epoch 22/50 - Train Acc: 63.68%, Val Acc: 64.23%, Test Acc: 63.15%
+Epoch 23/50 - Train Acc: 63.65%, Val Acc: 63.74%, Test Acc: 62.91%
+Epoch 24/50 - Train Acc: 64.02%, Val Acc: 64.03%, Test Acc: 62.97%
+Epoch 25/50 - Train Acc: 63.96%, Val Acc: 64.02%, Test Acc: 63.16%
+Epoch 26/50 - Train Acc: 64.02%, Val Acc: 64.09%, Test Acc: 62.93%
+Epoch 27/50 - Train Acc: 64.32%, Val Acc: 64.41%, Test Acc: 63.01%
+Epoch 28/50 - Train Acc: 64.18%, Val Acc: 64.26%, Test Acc: 63.08%
+Epoch 29/50 - Train Acc: 64.23%, Val Acc: 64.02%, Test Acc: 63.19%
+Epoch 30/50 - Train Acc: 64.22%, Val Acc: 64.30%, Test Acc: 63.35%
+Epoch 31/50 - Train Acc: 64.26%, Val Acc: 64.30%, Test Acc: 63.16%
+Epoch 32/50 - Train Acc: 64.27%, Val Acc: 64.35%, Test Acc: 63.11%
+Epoch 33/50 - Train Acc: 64.30%, Val Acc: 64.19%, Test Acc: 63.22%
+Epoch 34/50 - Train Acc: 64.36%, Val Acc: 64.35%, Test Acc: 63.35%
+Epoch 35/50 - Train Acc: 64.31%, Val Acc: 64.44%, Test Acc: 63.14%
+Epoch 36/50 - Train Acc: 64.41%, Val Acc: 64.22%, Test Acc: 63.36%
+Epoch 37/50 - Train Acc: 64.33%, Val Acc: 64.24%, Test Acc: 63.41%
+Epoch 38/50 - Train Acc: 64.29%, Val Acc: 64.35%, Test Acc: 63.22%
+Epoch 39/50 - Train Acc: 64.29%, Val Acc: 64.30%, Test Acc: 63.13%
+Epoch 40/50 - Train Acc: 64.40%, Val Acc: 64.18%, Test Acc: 63.16%
+Epoch 41/50 - Train Acc: 64.50%, Val Acc: 64.20%, Test Acc: 63.19%
+Epoch 42/50 - Train Acc: 64.53%, Val Acc: 64.29%, Test Acc: 63.31%
+Epoch 43/50 - Train Acc: 64.34%, Val Acc: 64.31%, Test Acc: 63.25%
+Epoch 44/50 - Train Acc: 64.54%, Val Acc: 64.32%, Test Acc: 63.22%
+Epoch 45/50 - Train Acc: 64.43%, Val Acc: 64.29%, Test Acc: 63.20%
+Epoch 46/50 - Train Acc: 64.35%, Val Acc: 64.36%, Test Acc: 63.19%
+Epoch 47/50 - Train Acc: 64.43%, Val Acc: 64.38%, Test Acc: 63.24%
+Epoch 48/50 - Train Acc: 64.50%, Val Acc: 64.33%, Test Acc: 63.23%
+Epoch 49/50 - Train Acc: 64.51%, Val Acc: 64.34%, Test Acc: 63.24%
+Epoch 50/50 - Train Acc: 64.55%, Val Acc: 64.33%, Test Acc: 63.23%
+Best model weights saved to /scratch/uceerjp/best_gat_model.pt
+Saved plot to /scratch/uceerjp/train_val_test_curves.png
+Results saved to /scratch/uceerjp/trainvaltest_results.pkl
+[RESTART] Script crashed or ended at Tue 29 Jul 00:23:15 BST 2025, retrying in 10s...
+[START] Training at Tue 29 Jul 00:23:25 BST 2025 on GPU 9
+[START] Training at Tue 29 Jul 13:52:49 BST 2025 on GPU 9
+Total graphs -> train: 107628, val: 13449, test: 13487
+Epoch 1/50 - Train Acc: 58.36%, Val Acc: 62.11%, Test Acc: 60.93%
+Epoch 2/50 - Train Acc: 60.73%, Val Acc: 61.80%, Test Acc: 61.59%
+Epoch 3/50 - Train Acc: 61.29%, Val Acc: 62.85%, Test Acc: 61.85%
+Epoch 4/50 - Train Acc: 61.87%, Val Acc: 62.89%, Test Acc: 62.57%
+Epoch 5/50 - Train Acc: 62.04%, Val Acc: 62.80%, Test Acc: 62.38%
+Epoch 6/50 - Train Acc: 62.26%, Val Acc: 63.14%, Test Acc: 62.33%
+Epoch 7/50 - Train Acc: 62.19%, Val Acc: 62.43%, Test Acc: 61.47%
+Epoch 8/50 - Train Acc: 62.43%, Val Acc: 63.28%, Test Acc: 62.18%
+Epoch 9/50 - Train Acc: 62.51%, Val Acc: 63.28%, Test Acc: 62.50%
+Epoch 10/50 - Train Acc: 62.75%, Val Acc: 63.58%, Test Acc: 61.87%
+Epoch 11/50 - Train Acc: 62.66%, Val Acc: 63.50%, Test Acc: 63.09%
+Epoch 12/50 - Train Acc: 62.60%, Val Acc: 64.19%, Test Acc: 62.37%
+Epoch 13/50 - Train Acc: 62.75%, Val Acc: 64.05%, Test Acc: 62.46%
+Epoch 14/50 - Train Acc: 62.92%, Val Acc: 64.32%, Test Acc: 62.79%
+Epoch 15/50 - Train Acc: 62.93%, Val Acc: 63.83%, Test Acc: 62.31%
+Epoch 16/50 - Train Acc: 63.10%, Val Acc: 64.07%, Test Acc: 61.77%
+Epoch 17/50 - Train Acc: 62.87%, Val Acc: 63.77%, Test Acc: 62.53%
+Epoch 18/50 - Train Acc: 63.42%, Val Acc: 64.15%, Test Acc: 62.17%
+Epoch 19/50 - Train Acc: 63.58%, Val Acc: 64.20%, Test Acc: 63.00%
+Epoch 20/50 - Train Acc: 63.72%, Val Acc: 64.54%, Test Acc: 63.28%
+Epoch 21/50 - Train Acc: 63.60%, Val Acc: 64.44%, Test Acc: 62.67%
+Epoch 22/50 - Train Acc: 63.67%, Val Acc: 64.45%, Test Acc: 63.12%
+Epoch 23/50 - Train Acc: 63.56%, Val Acc: 64.76%, Test Acc: 63.38%
+Epoch 24/50 - Train Acc: 63.61%, Val Acc: 64.33%, Test Acc: 62.92%
+Epoch 25/50 - Train Acc: 63.78%, Val Acc: 64.62%, Test Acc: 62.98%
+Epoch 26/50 - Train Acc: 63.66%, Val Acc: 64.52%, Test Acc: 63.33%
+Epoch 27/50 - Train Acc: 64.14%, Val Acc: 64.56%, Test Acc: 63.48%
+Epoch 28/50 - Train Acc: 64.08%, Val Acc: 64.61%, Test Acc: 63.00%
+Epoch 29/50 - Train Acc: 64.10%, Val Acc: 64.58%, Test Acc: 63.50%
+Epoch 30/50 - Train Acc: 64.27%, Val Acc: 64.65%, Test Acc: 63.10%
+Epoch 31/50 - Train Acc: 64.29%, Val Acc: 64.73%, Test Acc: 63.45%
+Epoch 32/50 - Train Acc: 64.30%, Val Acc: 64.51%, Test Acc: 63.45%
+Epoch 33/50 - Train Acc: 64.45%, Val Acc: 64.63%, Test Acc: 63.35%
+Epoch 34/50 - Train Acc: 64.47%, Val Acc: 64.76%, Test Acc: 63.19%
+Epoch 35/50 - Train Acc: 64.47%, Val Acc: 64.70%, Test Acc: 63.08%
+Epoch 36/50 - Train Acc: 64.42%, Val Acc: 64.61%, Test Acc: 63.34%
+Epoch 37/50 - Train Acc: 64.47%, Val Acc: 64.69%, Test Acc: 63.27%
+Epoch 38/50 - Train Acc: 64.76%, Val Acc: 64.61%, Test Acc: 63.31%
+Epoch 39/50 - Train Acc: 64.71%, Val Acc: 64.79%, Test Acc: 63.22%
+Epoch 40/50 - Train Acc: 64.68%, Val Acc: 64.84%, Test Acc: 63.08%
+Epoch 41/50 - Train Acc: 64.83%, Val Acc: 64.87%, Test Acc: 63.32%
+Epoch 42/50 - Train Acc: 64.59%, Val Acc: 64.61%, Test Acc: 63.35%
+Epoch 43/50 - Train Acc: 64.78%, Val Acc: 64.53%, Test Acc: 63.46%
+Epoch 44/50 - Train Acc: 64.51%, Val Acc: 64.58%, Test Acc: 63.47%
+Epoch 45/50 - Train Acc: 64.82%, Val Acc: 64.77%, Test Acc: 63.19%
+Epoch 46/50 - Train Acc: 64.77%, Val Acc: 64.62%, Test Acc: 63.13%
+Epoch 47/50 - Train Acc: 64.69%, Val Acc: 64.58%, Test Acc: 63.18%
+Epoch 48/50 - Train Acc: 64.60%, Val Acc: 64.66%, Test Acc: 63.29%
+Epoch 49/50 - Train Acc: 64.69%, Val Acc: 64.79%, Test Acc: 63.33%
+Epoch 50/50 - Train Acc: 64.63%, Val Acc: 64.69%, Test Acc: 63.31%
+Best model weights saved to /scratch/uceerjp/best_gat_model.pt
+Saved plot to /scratch/uceerjp/train_val_test_curves.png
+Results saved to /scratch/uceerjp/trainvaltest_results.pkl
+[RESTART] Script crashed or ended at Tue 29 Jul 15:27:54 BST 2025, retrying in 10s...
+[START] Training at Tue 29 Jul 15:28:04 BST 2025 on GPU 9
