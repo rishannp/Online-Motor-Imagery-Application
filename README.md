@@ -1,158 +1,156 @@
 # Neurofeedback & Online PLV-GAT BCI
 
-This repo contains two related applications:
+This repository provides two related applications for **motor imagery BCI experiments**:
 
-1. **Neurofeedback (Stieger-style replication)** — a lane‑runner game driven by an online alpha-band AR pipeline. This is used to collect an initial finetuning dataset while presenting stimuli similar to the foundational model’s training setup.
-2. **Online PLV + GAT Adaptation** — the same game driven by your foundational GAT model with **adaptive fine‑tuning** over time in the PLV space.
+1. **Neurofeedback (Stieger-style replication)**  
+   - A lane-runner style game driven by an AR-based alpha-band pipeline.  
+   - Used to collect initial finetuning data under the same paradigm as prior work.  
 
-> If you use this code in publications, please **cite our work** (placeholder citation below).
+2. **Online PLV + GAT Adaptation**  
+   - The same game, but with **online PLV-based GAT models** (or CSP+LDA).  
+   - Supports **incremental adaptation** during gameplay for subject-specific finetuning.  
+
+> If you use this code, please **cite our work** (see [Citing](#citing)).
 
 ---
 
-## Folder layout
+## 📂 Repository Structure
 
 ```
 neurofeedback/
-  ├── config.py             # Global parameters (subject/session, timing, etc.)
-  ├── game.py               # Lane‑runner game & trial saving
-  ├── preprocess.py         # Channel sets, artifact checks, subsets
-  ├── lsl_stream.py         # Connects to an EEG LSL stream
-  ├── sim_lsl_mi.py         # Optional LSL simulator for quick testing
-  ├── training_pipeline.py  # AR(16) alpha‑band lateralization pipeline
-  └── main_training.py      # Entry point for the neurofeedback trainer
-  └── trained_models/       # (optional) foundational model weights & trainer scripts
+  config.py
+  game.py
+  preprocess.py
+  lsl_stream.py
+  sim_lsl_mi.py
+  training_pipeline.py
+  main_training.py
+  trained_models/         # foundational model weights & training scripts
 
 online/
-  ├── config.py             # Same interface; add adaptation toggles & paths
-  ├── main_online.py        # Entry point for online PLV/GAT with adaptation
-  ├── ...                   # Model code, PLV computation, adapters, utils
-  └── trained_models/       # Foundational GAT weights (used for warm‑start)
+  config.py
+  game.py
+  preprocess.py
+  lsl_stream.py
+  featandclass.py
+  control_logic.py
+  main_online.py
+  trained_models/         # pretrained models (CSP/LDA .pkl, GAT .pt)
 ```
 
 ---
 
-## Quick start (Neurofeedback)
+## ⚙️ Installation
 
-### 1) Environment
-Create and activate a clean Python environment (Python 3.9+ recommended):
+1. Create a virtual environment (Python ≥ 3.9 recommended):
+
 ```bash
 python -m venv .venv
-# Windows
-. .venv/Scripts/activate
-# macOS/Linux
-source .venv/bin/activate
+source .venv/bin/activate   # Linux/macOS
+.venv\Scripts\activate      # Windows
 ```
 
-Install dependencies for the **neurofeedback** app:
+2. Install dependencies:
+
 ```bash
-pip install -r requirements-neurofeedback.txt
+pip install -r requirements.txt
 ```
 
-> If you later work in the **online** GAT app, install its requirements too (file to be finalized when those files are added).
+This single `requirements.txt` covers both `neurofeedback/` and `online/`.
 
-### 2) EEG input via LSL
-You need an EEG device capable of streaming **LSL** (Lab Streaming Layer).  
-For testing without hardware, you can run the simulator:
+---
+
+## 🧠 Running Neurofeedback (Stieger-style)
+
+### Step 1: Start an EEG source
+- **Real EEG device** that streams via **LSL** (Lab Streaming Layer).  
+- Or use the included simulator:
 
 ```bash
 python neurofeedback/sim_lsl_mi.py
 ```
 
-This publishes an LSL stream named `SimMI` with 64 channels in the expected order.
+### Step 2: Configure
+Edit `neurofeedback/config.py`:
+- `SUBJECT_ID`, `SESSION_ID` → output directories  
+- `NUM_LEVELS`, `TRIALS_PER_LEVEL` → experiment length  
+- `SAMPLING_RATE`, `WINDOW_SIZE`, etc. → processing cadence  
 
-### 3) Configure
-Edit `neurofeedback/config.py` to set subject/session, trial counts, timing, etc. The most relevant fields:
-
-- `SUBJECT_ID`, `SESSION_ID`, `RESULTS_DIR` → where outputs are written.
-- `NUM_LEVELS`, `TRIALS_PER_LEVEL` → game structure.
-- `SAMPLING_RATE`, `WINDOW_SIZE`, `STEP_SIZE` → online processing cadence.
-- `METHOD` → fixed to `'ar'` for the neurofeedback trainer.
-
-### 4) Run
-Start your LSL source (device or simulator), then:
-
+### Step 3: Run
 ```bash
 cd neurofeedback
-python lsl_stream.py        # optional: just to verify connection (prompts to choose a stream)
-python main_training.py     # launches BCI loop + game
+python main_training.py
 ```
 
-While running, the system computes AR‑based alpha power lateralization (C3 vs C4 small‑Laplacian) every ~40 ms and moves the cursor left/right accordingly. Trials are presented exactly as in the Stieger‑style trainer.
+---
+
+## 🧠 Running Online PLV + GAT Adaptation
+
+### Step 1: Start an EEG source
+Same as above (real LSL stream or simulator).
+
+### Step 2: Configure
+Edit `online/config.py`:
+- `METHOD` → `"plv"` (Graph Attention Network) or `"csp"` (CSP+LDA)  
+- `ADAPTATION` → `True` (online finetuning enabled) or `False` (static model)  
+- `ADAPT_N` → number of windows required before adaptation  
+- `VISUALISE_PLV` → `True` to open a live PLV heatmap window  
+
+### Step 3: Run
+```bash
+cd online
+python main_online.py
+```
+
+The game launches with BCI control. A green “Adapting” indicator shows when the model is being finetuned.
 
 ---
 
-## Outputs
+## 📊 Outputs
 
-- A session snapshot is saved to:
-  ```
-  {RESULTS_DIR}/Subject_{SUBJECT_ID}/Session_{SESSION_ID}/
-  ```
-- Files include:
-  - `config.json` — the run configuration.
-  - `session_data.pkl` — a dict of trials:
-    ```python
-    trials[trial_id] = {
-        'eeg': np.ndarray [n_channels, n_samples],   # continuous EEG for that trial
-        'fs': int,                                   # sampling rate (Hz)
-        'label': int,                                # 0=Left target, 1=Right target
-        'cursor_x': np.ndarray [n_frames],           # cursor x position over time
-        'hit': bool
-    }
-    ```
-  - Additional model weights/logs (if produced by other scripts) are stored under the same session directory.
+Both apps save results under:
 
-This subject/session‑centric structure is identical in the **online** app so that finetuned models and session data are neatly grouped.
+```
+collection_results/Subject_{ID}/Session_{ID}/
+```
+
+Saved files include:
+- `config.json` — frozen config snapshot for reproducibility  
+- `session_data.pkl` — dict of trials with EEG, labels, cursor trajectory, outcome  
+- Model snapshots:
+  - CSP/LDA → `csp_lda_finetuned_N.pkl`  
+  - GAT → `gat_finetuned_N.pt`  
+- `model_log.json` — chronological list of saved models  
 
 ---
 
-## Online PLV + GAT Adaptation (overview)
+## 🔧 Notes
 
-The `online/` application runs the **same game** but uses a pre‑trained **foundational GAT** model, computes PLV features online, and **adaptively fine‑tunes** the model over time. The user workflow mirrors the trainer:
-
-1. Adjust `online/config.py` (paths to foundational weights, adaptation toggles, subject/session IDs).
-2. Start an LSL EEG stream (or a simulator compatible with 64‑ch labels).
-3. Run:
-   ```bash
-   cd online
-   python main_online.py
-   ```
-
-> Note: Requirements for the **online** app include deep‑learning packages (e.g., `torch`, potentially `torch_geometric`). Once those files are finalized, install with `pip install -r requirements-online.txt`.
+- **Adaptation:**  
+  - If enabled, adaptation occurs every `ADAPT_N` labeled windows.  
+  - Each new adapted model is saved incrementally.  
+- **Visualisation:**  
+  - If `VISUALISE_PLV=True`, a live PLV heatmap updates during runtime.  
+- **Troubleshooting:**  
+  - “No LSL streams found” → start your device/simulator first.  
+  - Pygame crashes → ensure `pygame` installed with SDL and drivers up to date.  
 
 ---
 
-## Reproducibility
+## 📖 Citing
 
-- All mutable parameters live in the local `config.py` of each app.  
-- `main_training.py` stores a frozen copy of the config to the session folder for full reproducibility.
+If you use this repository in academic work, please cite:
 
----
+> Patel, R., *et al.* (YEAR). **TITLE**. *VENUE*. DOI/URL.  
 
-## Troubleshooting
-
-- **No LSL streams found**: ensure your device or simulator is running before starting the app. On some systems, firewall rules can block LSL.
-- **Pygame window not showing / crashing**: verify GPU drivers on Linux and that `pygame` is installed with `SDL` support.
-- **Samplerate mismatch**: the trainer assumes `SAMPLING_RATE=256`. If your device differs, align both the device and `config.py` (and re‑run).
+(Replace with your final publication details.)
 
 ---
 
-## Citing
+## 📜 License
 
-Please cite **our work** if you use this repository:
+This project is licensed under the **GNU General Public License v3 (GPL-3.0)**.  
+You may use, modify, and share the code under the terms of the GPL-3.0.  
+**Commercial use is not permitted** without explicit permission from the authors.  
 
-> Patel, R., *et al.* (YEAR). **TITLE**. *VENUE*. DOI/URL.
-
-(Replace with the final citation when available.)
-
----
-
-## License
-
-This project is released under the **GNU General Public License v3.0 (GPL‑3.0)**.  
-You may use, modify, and share the code under the terms of the GPL‑3.0; **commercial use is not permitted** beyond what the GPL allows without separate permission from the authors. See the full license text in [`LICENSE`](LICENSE).
-
----
-
-## Acknowledgements
-
-- The neurofeedback trainer replicates the overall stimulus paradigm used in prior literature to enable fair finetuning data collection; implementation is original and tailored for our PLV/GAT pipeline.
+See the full license in [`LICENSE`](LICENSE).
