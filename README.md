@@ -2,9 +2,9 @@
 
 This repository provides two related applications for **motor imagery BCI experiments**:
 
-1. **Neurofeedback (Stieger-style replication)**  
-   - A lane-runner style game driven by an AR-based alpha-band pipeline.  
-   - Used to collect initial finetuning data under the same paradigm as prior work.  
+1. **Neurofeedback (Replicating https://doi.org/10.1093/cercor/bhaa234)**  
+   - A left-right goal-target game driven by an AR-based alpha-band pipeline.  
+   - Used to collect initial finetuning data under the same paradigm as prior work by https://doi.org/10.1093/cercor/bhaa234.  
 
 2. **Online PLV + GAT Adaptation**  
    - The same game, but with **online PLV-based GAT models** (or CSP+LDA).  
