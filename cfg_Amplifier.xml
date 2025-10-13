@@ -1516,7 +1516,7 @@
         <Key>63</Key>
         <Value>
           <Available>true</Available>
-          <Acquire>false</Acquire>
+          <Acquire>true</Acquire>
           <BandpassFilter>
             <LowerCutoffFrequency>0</LowerCutoffFrequency>
             <UpperCutoffFrequency>0</UpperCutoffFrequency>
@@ -1540,7 +1540,7 @@
         <Key>64</Key>
         <Value>
           <Available>true</Available>
-          <Acquire>false</Acquire>
+          <Acquire>true</Acquire>
           <BandpassFilter>
             <LowerCutoffFrequency>0</LowerCutoffFrequency>
             <UpperCutoffFrequency>0</UpperCutoffFrequency>

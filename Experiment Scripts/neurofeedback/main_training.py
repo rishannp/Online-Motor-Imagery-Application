@@ -18,12 +18,12 @@ def main():
         json.dump({k:repr(v) for k,v in vars(__import__('config')).items()
                    if k.isupper()}, f, indent=2)
 
-    pipeline   = ARPipeline(band=(10.5, 13.5), order=16)
+    pipeline   = ARPipeline(band=(10.5, 13.5), order=12)
     action_q   = Queue()          # left/right commands to the game
     adapt_q    = Queue()          # (unused in trainer, kept for API parity)
     label_q    = Queue()          # (unused in trainer, kept for API parity)
     raw_eeg_q  = deque(maxlen=1)  # last WINDOW_SIZE block for any inspection
-    eeg_chunk_q = Queue()         # NEW: continuous sample chunks for saving
+    eeg_chunk_q = Queue()         
 
     def bci_loop():
         """

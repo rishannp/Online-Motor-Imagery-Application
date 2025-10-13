@@ -9,12 +9,12 @@ ADAPTATION    = False       # False = static, True = adaptive
 ADAPT_N       = 100        # how many windows to accumulate before adapting
 
 # ─── GAME PARAMETERS ────────────────────────────────────────────────────
-NUM_LEVELS        = 10
+NUM_LEVELS        = 5
 TRIALS_PER_LEVEL  = 20
 
 # ─── CUE & TRIAL TIMING ─────────────────────────────────────────────────
 CUE_DURATION      = 1.0
-TRIAL_DURATION    = 6.0
+TRIAL_DURATION    = 10.0
 
 # ─── REAL-TIME FEEDBACK RATE ────────────────────────────────────────────
 SAMPLING_RATE      = 256   # Hz
@@ -48,11 +48,11 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 # This is where train_from_saved.py writes:
 #   ...\trained_models\Subject_XXX\Session_001\finetuned_models\csp_lda_static.pkl
 #   ...\trained_models\Subject_XXX\Session_001\finetuned_models\gat_finetuned_from_nf.pt
-MODELS_BASE = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\working scripts\neurofeedback\trained_models"
+MODELS_BASE = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models"
 
 # Legacy/fallback paths (used only if nothing is found above)
-CSP_LDA_FALLBACK_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\working scripts\training\training_data.pkl"
-GAT_MODEL_FALLBACK_PT  = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\working scripts\training\best_finetuned_model.pt"
+CSP_LDA_FALLBACK_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\Online-Motor-Imagery-Decoder\Experiment Scripts\training\training_data.pkl"
+GAT_MODEL_FALLBACK_PT  = r"C:\Users\uceerjp\Desktop\PhD\Year 2\Online-Motor-Imagery-Decoder\Experiment Scripts\training\best_finetuned_model.pt"
 
 # ─── AUTO-RESOLVE TRAINED FILES FOR THIS SUBJECT/SESSION ────────────────
 def _resolve_trained_paths(models_base, subject_id, session_id):

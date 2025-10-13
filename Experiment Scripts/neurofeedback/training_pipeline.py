@@ -40,10 +40,10 @@ def ar_bandpower(x: np.ndarray, order: int, f_lo: float, f_hi: float, fs: float)
 class ARPipeline:
     """
     Motor-imagery neurofeedback:
-      small-Laplacian(C3/C4) → AR(16) PSD → integrate 10.5–13.5 Hz → diff (C4 - C3)
+      Hjorth Laplacian(C3/C4) → AR PSD → integrate band → diff (C4 - C3)
       outputs a binary left/right command every ~40 ms.
     """
-    def __init__(self, band=(10.5, 13.5), order=16):
+    def __init__(self, band=(10.5, 13.5), order=12):
         self.band = band
         self.order = order
         pp = Preprocessor()
@@ -51,20 +51,43 @@ class ARPipeline:
         self.e = pp.headset_electrodes
         self.idx = {ch: i for i, ch in enumerate(self.e)}
 
-    def _laplacian(self, win: np.ndarray, center: str, n1: str, n2: str) -> np.ndarray:
+        # define the canonical Hjorth 4-neighbour sets for motor electrodes
+        self.hjorth_neighbors = {
+            'C3': ['FC3', 'CP3', 'C1', 'C5'],
+            'C4': ['FC4', 'CP4', 'C2', 'C6'],
+        }
+
+    def _laplacian_hjorth(self, win: np.ndarray, center: str, neighbors: list[str]) -> np.ndarray:
+        """
+        Hjorth Laplacian: center - mean(neighbors)
+        - win: [samples, 64]
+        - center: electrode name (e.g., 'C3')
+        - neighbors: list of 4 nearest neighbours around 'center'
+        I make this robust to missing channels by using whatever neighbours exist.
+        """
         i = self.idx
-        return win[:, i[center]] - 0.5 * (win[:, i[n1]] + win[:, i[n2]])
+        # center signal (this KeyError should never happen with the fixed 64-ch layout)
+        c = win[:, i[center]]
+
+        # collect neighbour columns that exist in the montage
+        avail = [win[:, i[ch]] for ch in neighbors if ch in i]
+        if len(avail) == 0:
+            # degenerate case: no neighbours present — I just return the center signal
+            return c
+
+        neigh = np.stack(avail, axis=1)            # [samples, n_neigh]
+        return c - neigh.mean(axis=1)              # center - mean(neighbours)
 
     def process(self, window: np.ndarray) -> int:
         """
         window: [samples, 64] raw segment (we use last 3 s via caller)
         returns: 0 (move left) or 1 (move right)
         """
-        # Small-Laplacian at motor electrodes
-        lap3 = self._laplacian(window, 'C3', 'FC3', 'CP3')
-        lap4 = self._laplacian(window, 'C4', 'FC4', 'CP4')
+        # Hjorth 4-neighbour Laplacian for C3/C4 (emphasises focal motor cortex rhythms)
+        lap3 = self._laplacian_hjorth(window, 'C3', self.hjorth_neighbors['C3'])
+        lap4 = self._laplacian_hjorth(window, 'C4', self.hjorth_neighbors['C4'])
 
-        # AR band power around 12 Hz (3 Hz bin)
+        # AR band power in my target band (defaults to ~mu)
         p3 = ar_bandpower(lap3, self.order, self.band[0], self.band[1], SAMPLING_RATE)
         p4 = ar_bandpower(lap4, self.order, self.band[0], self.band[1], SAMPLING_RATE)
 

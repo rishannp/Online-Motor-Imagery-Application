@@ -23,7 +23,7 @@ C4, FC4, CP4 = idx['C4'], idx['FC4'], idx['CP4']
 
 t = 0
 phase = 0.0
-block_len = 6.0  # seconds per condition
+block_len = 10.0  # seconds per condition
 block_start = local_clock()
 
 print("Publishing SimMI LSL stream... (Ctrl+C to stop)")

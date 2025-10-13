@@ -1,0 +1,57 @@
+{
+  "session_pkl": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\training_results\\Subject_000\\Session_005\\session_data.pkl",
+  "foundation_pt": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\foundational.pt",
+  "sfreq": 256.0,
+  "config": {
+    "window_sec": 3.0,
+    "overlap_sec": 0.5,
+    "keep_short_as_full": true,
+    "finetune_frac": 0.5,
+    "epochs": 100,
+    "batch_size": 32,
+    "lr": 0.0001,
+    "weight_decay": 0.0001,
+    "topk_percent": 0.4,
+    "epsilon": 1e-06
+  },
+  "results": {
+    "window_sec": 3.0,
+    "overlap_sec": 0.5,
+    "keep_short_as_full": true,
+    "foundation_acc": 0.4805194805194805,
+    "foundation_cm": [
+      [
+        83,
+        60
+      ],
+      [
+        100,
+        65
+      ]
+    ],
+    "finetune_frac": 0.5,
+    "train_class_counts": {
+      "0": 72,
+      "1": 83
+    },
+    "test_class_counts": {
+      "0": 71,
+      "1": 82
+    },
+    "finetune_best_acc": 0.6470588235294118,
+    "finetune_best_cm": [
+      [
+        46,
+        25
+      ],
+      [
+        29,
+        53
+      ]
+    ],
+    "n_graphs": 308,
+    "n_train_graphs": 155,
+    "n_test_graphs": 153,
+    "model_saved_to": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Session_005_runs\\gat_finetuned_win3_ov0.50s.pt"
+  }
+}
