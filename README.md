@@ -2,15 +2,15 @@
 
 This repository provides two related applications for **motor imagery BCI experiments**:
 
-1. **Neurofeedback (Stieger-style replication)**  
-   - A lane-runner style game driven by an AR-based alpha-band pipeline.  
-   - Used to collect initial finetuning data under the same paradigm as prior work.  
+1. **Neurofeedback (Replicating https://doi.org/10.1093/cercor/bhaa234)**  
+   - A left-right goal-target game driven by an AR-based alpha-band pipeline.  
+   - Used to collect initial finetuning data under the same paradigm as prior work by https://doi.org/10.1093/cercor/bhaa234.  
 
 2. **Online PLV + GAT Adaptation**  
    - The same game, but with **online PLV-based GAT models** (or CSP+LDA).  
    - Supports **incremental adaptation** during gameplay for subject-specific finetuning.  
 
-> If you use this code, please **cite our work** (see [Citing](#citing)).
+> If you use this code, please **cite our work**
 
 ---
 
@@ -130,10 +130,7 @@ Saved files include:
   - If enabled, adaptation occurs every `ADAPT_N` labeled windows.  
   - Each new adapted model is saved incrementally.  
 - **Visualisation:**  
-  - If `VISUALISE_PLV=True`, a live PLV heatmap updates during runtime.  
-- **Troubleshooting:**  
-  - “No LSL streams found” → start your device/simulator first.  
-  - Pygame crashes → ensure `pygame` installed with SDL and drivers up to date.  
+  - If `VISUALISE_PLV=True`, a live PLV heatmap updates during runtime.
 
 ---
 
@@ -143,7 +140,7 @@ If you use this repository in academic work, please cite:
 
 > Patel, R., *et al.* (YEAR). **TITLE**. *VENUE*. DOI/URL.  
 
-(Replace with your final publication details.)
+To be replaced with publication.
 
 ---
 
