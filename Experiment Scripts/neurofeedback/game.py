@@ -1,3 +1,4 @@
+# game.py
 import os, pickle, random, pygame, queue, numpy as np
 from config import (
     SUBJECT_DIR, SESSION_DIR,
