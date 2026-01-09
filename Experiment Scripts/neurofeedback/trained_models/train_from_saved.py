@@ -26,9 +26,9 @@ from torch_geometric.utils import add_self_loops
 # =============================
 # CONFIG — EDIT THESE IN SPYDER
 # =============================
-SESSION_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_000\Session_005\session_data.pkl"
+SESSION_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_000\Session_006\session_data.pkl"
 FOUNDATION_PT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\foundational.pt"
-OUT_DIR       = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Session_005_runs"
+OUT_DIR       = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Session_006_runs"
 
 # --- Windowing (single scheme) ---
 WINDOW_SEC       = 3.0     # e.g., 1.0, 5.0, etc.

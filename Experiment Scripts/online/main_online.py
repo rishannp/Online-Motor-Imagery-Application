@@ -13,6 +13,7 @@ from config import (
     VISUALISE_PLV, WINDOW_SIZE, FEEDBACK_INTERVAL,
     SAMPLING_RATE
 )
+
 from preprocess import preprocess_window
 from featandclass import BCIPipeline, n_channels
 from lsl_stream import _inlet, shutdown_lsl

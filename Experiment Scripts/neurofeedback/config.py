@@ -31,7 +31,7 @@ CSP_CHANNELS = [
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
 SUBJECT_ID  = "000"
-SESSION_ID  = "005"
+SESSION_ID  = "006"
 RESULTS_DIR = "./training_results"
 
 SUBJECT_DIR = os.path.join(RESULTS_DIR, f"Subject_{SUBJECT_ID}")

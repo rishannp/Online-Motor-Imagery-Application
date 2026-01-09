@@ -4,7 +4,7 @@ import os
 from glob import glob
 
 # ─── MODE SELECTION ─────────────────────────────────────────────────────
-METHOD        = 'plv'      # 'plv' or 'csp'
+METHOD        = 'plv'      # 'plv'
 ADAPTATION    = False       # False = static, True = adaptive
 ADAPT_N       = 100        # how many windows to accumulate before adapting
 
@@ -51,8 +51,8 @@ os.makedirs(SESSION_DIR, exist_ok=True)
 MODELS_BASE = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models"
 
 # Legacy/fallback paths (used only if nothing is found above)
-CSP_LDA_FALLBACK_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\Online-Motor-Imagery-Decoder\Experiment Scripts\training\training_data.pkl"
-GAT_MODEL_FALLBACK_PT  = r"C:\Users\uceerjp\Desktop\PhD\Year 2\Online-Motor-Imagery-Decoder\Experiment Scripts\training\best_finetuned_model.pt"
+CSP_LDA_FALLBACK_PKL   = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\training_data.pkl"
+GAT_MODEL_FALLBACK_PT  = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\foundational.pt"
 
 # ─── AUTO-RESOLVE TRAINED FILES FOR THIS SUBJECT/SESSION ────────────────
 def _resolve_trained_paths(models_base, subject_id, session_id):
