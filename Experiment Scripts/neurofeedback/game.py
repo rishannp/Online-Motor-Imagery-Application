@@ -26,7 +26,7 @@ DOT_CENTER_X, DOT_Y = SCREEN_W // 2, SCREEN_H // 2
 # I use a subtle blink on the preview paddle so the next target is obvious but not noisy
 PREVIEW_BLINK_MS = 400
 
-def ms(x): 
+def ms(x):
     # I convert seconds to milliseconds for pygame timing
     return int(x * 1000)
 
@@ -54,6 +54,19 @@ def _draw_paddles(screen, left_color, right_color):
     pygame.draw.rect(screen, left_color,  left_rect,  border_radius=5)
     pygame.draw.rect(screen, right_color, right_rect, border_radius=5)
     return left_rect, right_rect
+
+def _drain_latest_cmd(action_q):
+    """
+    I drain all pending commands and keep only the newest.
+    Returns None if no new command arrived since last frame.
+    """
+    newest = None
+    while True:
+        try:
+            newest = action_q.get_nowait()
+        except queue.Empty:
+            break
+    return newest
 
 def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
     """
@@ -114,7 +127,11 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
 
     clock = pygame.time.Clock()
     run = True
-    last_cmd = None
+
+    # I persist command state across frames
+    baseline_active = True      # I show baseline until I see a real (0/1) command
+    last_cmd = None             # last real command (0 or 1)
+
     last_adapt = 0
     adapt_dur = 0
 
@@ -135,18 +152,29 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
 
         # ------------- STATE: TRIAL -------------
         if state == STATE_TRIAL:
-            # I get latest BCI command (0/1) and hold last if queue empty
-            try:
-                cmd = action_q.get_nowait()
-                last_cmd = cmd
-            except queue.Empty:
-                cmd = last_cmd
+            # I drain newest command for this frame (pipeline updates ~25 Hz; game is 60 FPS)
+            new_cmd = _drain_latest_cmd(action_q)
 
-            # I move the dot with bounds (only during trial)
-            if cmd == 0 and DOT_X - PLAYER_RADIUS > LEFT_X + PADDLE_W:
-                DOT_X -= PLAYER_SPEED
-            if cmd == 1 and DOT_X + PLAYER_RADIUS < RIGHT_X:
-                DOT_X += PLAYER_SPEED
+            # Baseline handling:
+            # - During baseline the pipeline returns None, so baseline_active stays True
+            # - As soon as I see a real command (0/1), I exit baseline permanently
+            if new_cmd in (0, 1):
+                last_cmd = new_cmd
+                baseline_active = False
+            elif baseline_active:
+                # still baselining: enforce no command
+                last_cmd = None
+
+            baseline_mode = baseline_active
+
+            # I move the dot with bounds (only during trial, and only after baseline)
+            if baseline_mode:
+                DOT_X = DOT_CENTER_X
+            else:
+                if last_cmd == 0 and DOT_X - PLAYER_RADIUS > LEFT_X + PADDLE_W:
+                    DOT_X -= PLAYER_SPEED
+                elif last_cmd == 1 and DOT_X + PLAYER_RADIUS < RIGHT_X:
+                    DOT_X += PLAYER_SPEED
 
             cursor_positions.append(DOT_X)
 
@@ -178,8 +206,14 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
 
             screen.blit(font.render(f"Level {level}/{NUM_LEVELS}", True, TEXT_COLOR), (10, 10))
             screen.blit(font.render(f"Hits {hits}  Misses {misses}", True, TEXT_COLOR), (10, 50))
+
             ac = (0, 255, 0) if (ts - last_adapt) < adapt_dur else GREY
             screen.blit(font.render("Adapting", True, ac), (260, 10))
+
+            # Baseline indicator (only while baseline_active)
+            if baseline_mode:
+                screen.blit(font.render("Baseline (Rest)", True, TEXT_COLOR),
+                            (DOT_CENTER_X - 105, 20))
 
             pygame.display.flip()
             clock.tick(FPS)
@@ -232,17 +266,13 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
                     ti = 0
                     level += 1
                     if level > NUM_LEVELS:
-                        # all done — leave loop
                         break
-                    # I prepare next level's spawn sequence
                     spawns = spawn_list()
-                    side = spawns[ti]  # first target of next level (will start after ILP)
-                    # Switch to inter-level pause
+                    side = spawns[ti]
                     state = STATE_ILP
                     ilp_start = ts
                     continue
                 else:
-                    # Still within same level: set next target and go to ITI
                     side = spawns[ti]
                     state = STATE_ITI
                     iti_start = ts
@@ -250,26 +280,19 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
 
         # ------------- STATE: ITI (inter-trial pause) -------------
         elif state == STATE_ITI:
-            # I ignore commands, discard EEG, and show a clear rest screen
             _drain_queue(eeg_chunk_q)
 
-            # I blink the preview paddle so it's obvious but not annoying
             blink_on = ((ts // PREVIEW_BLINK_MS) % 2) == 0
-            # I highlight the *next* target (side already set to next trial above)
             lc = YELLOW if (side == 0 and blink_on) else GREY
             rc = YELLOW if (side == 1 and blink_on) else GREY
 
-            left_rect, right_rect = _draw_paddles(screen, lc, rc)
-
-            # I leave the dot parked in the middle during rest
+            _draw_paddles(screen, lc, rc)
             pygame.draw.circle(screen, PLAYER_COLOR, (int(DOT_X), DOT_Y), PLAYER_RADIUS)
 
-            # HUD
             screen.blit(font.render(f"Level {level}/{NUM_LEVELS}", True, TEXT_COLOR), (10, 10))
             screen.blit(font.render(f"Hits {hits}  Misses {misses}", True, TEXT_COLOR), (10, 50))
             screen.blit(font.render("Rest", True, TEXT_COLOR), (DOT_CENTER_X - 30, 20))
 
-            # I show explicit next target + countdown so participants can anticipate
             remain_ms = max(0, iti_ms - (ts - iti_start))
             next_txt  = "LEFT" if side == 0 else "RIGHT"
             screen.blit(font.render(f"Next target: {next_txt}", True, TEXT_COLOR),
@@ -288,15 +311,13 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
 
         # ------------- STATE: ILP (inter-level pause) -------------
         elif state == STATE_ILP:
-            # I ignore commands, discard EEG, and indicate level complete + next target
             _drain_queue(eeg_chunk_q)
 
             blink_on = ((ts // PREVIEW_BLINK_MS) % 2) == 0
-            # Note: 'side' is already set to the first target of the next level
             lc = YELLOW if (side == 0 and blink_on) else GREY
             rc = YELLOW if (side == 1 and blink_on) else GREY
 
-            left_rect, right_rect = _draw_paddles(screen, lc, rc)
+            _draw_paddles(screen, lc, rc)
             pygame.draw.circle(screen, PLAYER_COLOR, (int(DOT_X), DOT_Y), PLAYER_RADIUS)
 
             screen.blit(font.render(f"Level {level-1} complete", True, TEXT_COLOR), (10, 10))
@@ -304,7 +325,6 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
             screen.blit(font.render("Level Complete — Rest", True, TEXT_COLOR),
                         (DOT_CENTER_X - 160, 20))
 
-            # I show the upcoming side + countdown
             remain_ms = max(0, ilp_ms - (ts - ilp_start))
             next_txt  = "LEFT" if side == 0 else "RIGHT"
             screen.blit(font.render(f"Next target: {next_txt}", True, TEXT_COLOR),
@@ -319,7 +339,6 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
                 trial_start = ts
                 state = STATE_TRIAL
                 _drain_queue(eeg_chunk_q)
-                # 'side' stays as the first target for the new level
                 continue
 
     # I save all trials at the end of the session

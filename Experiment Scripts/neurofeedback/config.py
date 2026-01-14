@@ -30,10 +30,18 @@ CSP_CHANNELS = [
 ]
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
-SUBJECT_ID  = "000"
-SESSION_ID  = "006"
+SUBJECT_ID  = "001"
+SESSION_ID  = "002"
 RESULTS_DIR = "./training_results"
 
 SUBJECT_DIR = os.path.join(RESULTS_DIR, f"Subject_{SUBJECT_ID}")
 SESSION_DIR = os.path.join(SUBJECT_DIR, f"Session_{SESSION_ID}")
 os.makedirs(SESSION_DIR, exist_ok=True)
+
+# ─── AR CONTROL NORMALISATION ────────────────────────────
+# I optionally run a short baseline period (rest) at the beginning of the session.
+# During baseline collection the pipeline returns `None` so the cursor stays centered.
+AR_BASELINE_SECONDS = 10.0     # s: how long I estimate baseline asymmetry (C4-C3)
+# I z-score the baseline-corrected AR difference using a rolling window of recent updates.
+AR_ZSCORE_SECONDS   = 30.0     # s: rolling stats horizon (mean/std) for control stability
+AR_ZSCORE_CLIP      = 3.0      # I clip |z| to avoid extreme control spikes

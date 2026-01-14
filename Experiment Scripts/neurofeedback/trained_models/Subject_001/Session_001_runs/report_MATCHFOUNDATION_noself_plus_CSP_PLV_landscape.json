@@ -1,0 +1,135 @@
+{
+  "session_pkl": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\training_results\\Subject_001\\Session_001\\session_data.pkl",
+  "foundation_pt": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\3s_0.5s_8-30Hz_model.pt",
+  "sfreq": 256.0,
+  "results": {
+    "window_sec": 3.0,
+    "overlap_sec": 0.5,
+    "hop_sec": 2.5,
+    "apply_bandpass": true,
+    "bp_lo": 8.0,
+    "bp_hi": 30.0,
+    "topk_percent": 0.4,
+    "epsilon": 1e-06,
+    "split_fracs": {
+      "train": 0.5,
+      "val": 0.2,
+      "test": 0.3
+    },
+    "n_windows": 369,
+    "train_class_counts": {
+      "1": 93,
+      "0": 92
+    },
+    "val_class_counts": {
+      "1": 38,
+      "0": 37
+    },
+    "test_class_counts": {
+      "1": 55,
+      "0": 54
+    },
+    "foundation_acc_all": 0.5203252032520326,
+    "foundation_cm_all": [
+      [
+        113,
+        70
+      ],
+      [
+        107,
+        79
+      ]
+    ],
+    "part1_gat_best_val_acc": 0.6133333333333333,
+    "part1_gat_best_val_cm": [
+      [
+        21,
+        16
+      ],
+      [
+        13,
+        25
+      ]
+    ],
+    "part1_gat_test_acc": 0.5412844036697247,
+    "part1_gat_test_cm": [
+      [
+        24,
+        30
+      ],
+      [
+        20,
+        35
+      ]
+    ],
+    "part1_gat_saved_to": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\gat_finetuned_MATCHFOUND_noself_win3_ov0.50s.pt",
+    "part2_csp_best_model": "gboost",
+    "part2_csp_best_val_acc": 0.6266666666666667,
+    "part2_csp_best_test_acc": 0.5045871559633027,
+    "part2_csp_best_val_cm": [
+      [
+        27,
+        10
+      ],
+      [
+        18,
+        20
+      ]
+    ],
+    "part2_csp_best_test_cm": [
+      [
+        27,
+        27
+      ],
+      [
+        27,
+        28
+      ]
+    ],
+    "part2_csp_best_params": {
+      "clf__learning_rate": 0.05,
+      "clf__max_depth": 2,
+      "clf__n_estimators": 300
+    },
+    "part2_csp_topos_prefix": "CSP_topomap_patterns_top*_comp*.png",
+    "part3_plv_feature_selection_npz": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PART3_PLV_selected_features_CVKL.npz",
+    "part3_plv_selected_edge_count": 157,
+    "part3_plv_selected_node_count": 6,
+    "part3_plv_cv_thr_edges": 0.2333867073059082,
+    "part3_plv_kl_thr_edges": 1.2466794252395628,
+    "part3_plv_cv_thr_nodes": 0.16584655940532683,
+    "part3_plv_kl_thr_nodes": 1.183583879470825,
+    "part3_plv_best_model": "logreg",
+    "part3_plv_best_val_acc": 0.6,
+    "part3_plv_best_test_acc": 0.5137614678899083,
+    "part3_plv_best_val_cm": [
+      [
+        25,
+        12
+      ],
+      [
+        18,
+        20
+      ]
+    ],
+    "part3_plv_best_test_cm": [
+      [
+        34,
+        20
+      ],
+      [
+        33,
+        22
+      ]
+    ],
+    "part3_plv_best_params": {
+      "clf__C": 10.0,
+      "clf__penalty": "l2"
+    },
+    "part3_plv_landscape_plots": [
+      "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PLV_landscape_edges_CV_vs_KL.png",
+      "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PLV_landscape_nodes_CV_vs_KL.png",
+      "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PLV_landscape_combined_CV_vs_KL.png"
+    ]
+  }
+}

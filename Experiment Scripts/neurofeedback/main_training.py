@@ -19,7 +19,7 @@ def main():
                    if k.isupper()}, f, indent=2)
 
     pipeline   = ARPipeline(band=(10.5, 13.5), order=12)
-    action_q   = Queue()          # left/right commands to the game
+    action_q   = Queue()          # None during baseline, else left/right commands to the game
     adapt_q    = Queue()          # (unused in trainer, kept for API parity)
     label_q    = Queue()          # (unused in trainer, kept for API parity)
     raw_eeg_q  = deque(maxlen=1)  # last WINDOW_SIZE block for any inspection
@@ -53,7 +53,16 @@ def main():
                 raw_eeg_q.clear()
                 raw_eeg_q.append(window)
 
-                cmd = pipeline.process(window)  # 0=Left, 1=Right
+                cmd = pipeline.process(window)  # None during baseline, else 0=Left, 1=Right
+
+                # print at ~1 Hz so it doesn't spam
+                if count % SAMPLING_RATE == 0:
+                    print(
+                        f"cmd={cmd} "
+                        f"diff={getattr(pipeline,'last_diff',None): .3e} "
+                        f"z={getattr(pipeline,'last_z',None): .3f}"
+                    )
+                
                 action_q.put(cmd)
 
     Thread(target=bci_loop, daemon=True).start()

@@ -1,67 +1,61 @@
 import numpy as np
-from config import METHOD, CSP_CHANNELS
+from scipy.signal import butter, filtfilt
 
-class Preprocessor:
-    def __init__(self, artifact_threshold=10000.0):
-        self.artifact_thresh = artifact_threshold
+from config import (
+    SAMPLING_RATE, BP_LOW_HZ, BP_HIGH_HZ, BP_ORDER,
+    ARTIFACT_PTP_UV, ENABLE_ZSCORE
+)
 
-        # Full 64-channel headset layout
-        self.headset_electrodes = [
-            'FP1', 'FPz', 'FP2', 'AF7', 'AF3', 'AF4', 'AF8', 'F7', 'F5', 'F3',
-            'F1', 'Fz', 'F2', 'F4', 'F6', 'F8', 'FT7', 'FC5', 'FC3', 'FC1', 'FCz',
-            'FC2', 'FC4', 'FC6', 'FT8', 'T7', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4',
-            'C6', 'T8', 'TP7', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
-            'TP8', 'P7', 'P5', 'P3', 'P1', 'Pz', 'P2', 'P4', 'P6', 'P8', 'PO7',
-            'PO3', 'POz', 'PO4', 'PO8', 'O1', 'Oz', 'O2', 'F9', 'F10', 'A1', 'A2'
-        ]
+HEADSET_64 = [
+    'FP1','FPz','FP2','AF7','AF3','AF4','AF8','F7','F5','F3',
+    'F1','Fz','F2','F4','F6','F8','FT7','FC5','FC3','FC1','FCz',
+    'FC2','FC4','FC6','FT8','T7','C5','C3','C1','Cz','C2','C4',
+    'C6','T8','TP7','CP5','CP3','CP1','CPz','CP2','CP4','CP6',
+    'TP8','P7','P5','P3','P1','Pz','P2','P4','P6','P8','PO7',
+    'PO3','POz','PO4','PO8','O1','Oz','O2','F9','F10','A1','A2'
+]
 
-        # 58 shared electrodes used for training
-        self.shared_stieger_electrodes = [
-            'FP1', 'FPz', 'FP2', 'AF3', 'AF4', 'F7', 'F5', 'F3', 'F1', 'Fz',
-            'F2', 'F4', 'F6', 'F8', 'FT7', 'FC5', 'FC3', 'FC1', 'FCz', 'FC2',
-            'FC4', 'FC6', 'FT8', 'T7', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4',
-            'C6', 'T8', 'TP7', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6',
-            'TP8', 'P7', 'P5', 'P3', 'P1', 'Pz', 'P2', 'P4', 'P6', 'P8', 'PO7',
-            'PO3', 'POz', 'PO4', 'PO8', 'O1', 'Oz', 'O2'
-        ]
+SHARED_58 = [
+    'FP1','FPz','FP2','AF3','AF4','F7','F5','F3','F1','Fz',
+    'F2','F4','F6','F8','FT7','FC5','FC3','FC1','FCz','FC2',
+    'FC4','FC6','FT8','T7','C5','C3','C1','Cz','C2','C4',
+    'C6','T8','TP7','CP5','CP3','CP1','CPz','CP2','CP4','CP6',
+    'TP8','P7','P5','P3','P1','Pz','P2','P4','P6','P8','PO7',
+    'PO3','POz','PO4','PO8','O1','Oz','O2'
+]
 
-        # map 64→58
-        self.subset_indices = [
-            self.headset_electrodes.index(e)
-            for e in self.shared_stieger_electrodes
-        ]
+_SRC_IDX = {ch: i for i, ch in enumerate(HEADSET_64)}
+SUBSET_IDX = [ _SRC_IDX[ch] for ch in SHARED_58 ]
 
-        # within the 58, pick out FC / C / CP channels for CSP
-        self.csp_indices = [
-            self.shared_stieger_electrodes.index(ch)
-            for ch in CSP_CHANNELS
-        ]
+def _bandpass(x: np.ndarray, fs: float):
+    nyq = 0.5 * fs
+    lo, hi = BP_LOW_HZ / nyq, BP_HIGH_HZ / nyq
+    b, a = butter(BP_ORDER, [lo, hi], btype="bandpass")
+    return filtfilt(b, a, x, axis=0)
 
-    def process(self, window: np.ndarray) -> np.ndarray:
-        # Artifact rejection
-        ptp = window.max(axis=0) - window.min(axis=0)
-        if np.any(ptp > self.artifact_thresh):
-            return None
+def _zscore(x: np.ndarray):
+    mu = x.mean(axis=0, keepdims=True)
+    sd = x.std(axis=0, ddof=1, keepdims=True)
+    return (x - mu) / (sd + 1e-8)
 
-        # subset down to the 58 training channels
-        return window[:, self.subset_indices]
-
-
-_pre = Preprocessor()
-
-def preprocess_window(window):
+def preprocess_window(window_64: np.ndarray, fs: float = SAMPLING_RATE) -> np.ndarray | None:
     """
-    Input: raw [samples,64].
-    Output: 
-      - [samples,58] when METHOD='plv'
-      - [samples,#CSP] when METHOD='csp'
+    Input:  window_64 [T, 64]
+    Output: window_58 [T, 58] after:
+      - artifact reject (ptp)
+      - bandpass 8–30
+      - optional z-score
+      - subset to shared 58
     """
-    w = _pre.process(window)
-    if w is None:
+    if window_64.ndim != 2 or window_64.shape[1] != 64:
         return None
 
-    if METHOD.lower() == 'csp':
-        # further subset to just FC/C/CP
-        return w[:, _pre.csp_indices]
+    ptp = window_64.max(axis=0) - window_64.min(axis=0)
+    if np.any(ptp > ARTIFACT_PTP_UV):
+        return None
 
-    return w
+    w = _bandpass(window_64, fs)
+    if ENABLE_ZSCORE:
+        w = _zscore(w)
+
+    return w[:, SUBSET_IDX]

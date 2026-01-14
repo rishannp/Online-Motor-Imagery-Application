@@ -11,7 +11,7 @@ class Preprocessor:
         artifact_threshold: float = 3000000.0,
         sampling_rate: float = 256.0,     # NOTE: set to our actual LSL/amp fs
         bp_low_hz: float = 8.0,           # I want 8–12 Hz by default (mu band slice)
-        bp_high_hz: float = 16.0,
+        bp_high_hz: float = 30.0,
         bp_order: int = 4,                # 4th-order Butterworth 
         enable_bandpass: bool = True,     # toggle if I want to disable in ablations
         enable_zscore: bool = True        # toggle for z-score normalisation
