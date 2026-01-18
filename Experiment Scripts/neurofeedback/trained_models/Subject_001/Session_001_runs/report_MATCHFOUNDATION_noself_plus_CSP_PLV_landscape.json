@@ -12,18 +12,18 @@
     "topk_percent": 0.4,
     "epsilon": 1e-06,
     "split_fracs": {
-      "train": 0.5,
-      "val": 0.2,
+      "train": 0.4,
+      "val": 0.3,
       "test": 0.3
     },
     "n_windows": 369,
     "train_class_counts": {
-      "1": 93,
-      "0": 92
+      "1": 75,
+      "0": 74
     },
     "val_class_counts": {
-      "1": 38,
-      "0": 37
+      "1": 56,
+      "0": 55
     },
     "test_class_counts": {
       "1": 55,
@@ -40,40 +40,71 @@
         79
       ]
     ],
-    "part1_gat_best_val_acc": 0.6133333333333333,
+    "part1_gat_best_val_acc": 0.5855855855855856,
     "part1_gat_best_val_cm": [
       [
-        21,
-        16
+        32,
+        23
       ],
       [
-        13,
-        25
+        23,
+        33
       ]
     ],
-    "part1_gat_test_acc": 0.5412844036697247,
+    "part1_gat_test_acc": 0.4954128440366973,
     "part1_gat_test_cm": [
       [
-        24,
-        30
+        27,
+        27
       ],
       [
-        20,
-        35
+        28,
+        27
       ]
     ],
     "part1_gat_saved_to": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\gat_finetuned_MATCHFOUND_noself_win3_ov0.50s.pt",
-    "part2_csp_best_model": "gboost",
-    "part2_csp_best_val_acc": 0.6266666666666667,
-    "part2_csp_best_test_acc": 0.5045871559633027,
+    "part2_csp_mode": "motor_subset",
+    "part2_csp_channels": [
+      "FC5",
+      "FC3",
+      "FC1",
+      "FCz",
+      "FC2",
+      "FC4",
+      "FC6",
+      "C5",
+      "C3",
+      "C1",
+      "Cz",
+      "C2",
+      "C4",
+      "C6",
+      "CP5",
+      "CP3",
+      "CP1",
+      "CPz",
+      "CP2",
+      "CP4",
+      "CP6",
+      "P5",
+      "P3",
+      "P1",
+      "Pz",
+      "P2",
+      "P4",
+      "P6"
+    ],
+    "part2_csp_best_model": "logreg",
+    "part2_csp_best_val_acc": 0.6216216216216216,
+    "part2_csp_best_test_acc": 0.5596330275229358,
     "part2_csp_best_val_cm": [
       [
-        27,
-        10
+        41,
+        14
       ],
       [
-        18,
-        20
+        28,
+        28
       ]
     ],
     "part2_csp_best_test_cm": [
@@ -82,49 +113,48 @@
         27
       ],
       [
-        27,
-        28
+        21,
+        34
       ]
     ],
     "part2_csp_best_params": {
-      "clf__learning_rate": 0.05,
-      "clf__max_depth": 2,
-      "clf__n_estimators": 300
+      "clf__C": 10.0,
+      "clf__penalty": "l1"
     },
-    "part2_csp_topos_prefix": "CSP_topomap_patterns_top*_comp*.png",
+    "part2_csp_topos_prefix": "CSP_topomap_patterns_MOTOR_rank*_comp*.png",
     "part3_plv_feature_selection_npz": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PART3_PLV_selected_features_CVKL.npz",
-    "part3_plv_selected_edge_count": 157,
-    "part3_plv_selected_node_count": 6,
-    "part3_plv_cv_thr_edges": 0.2333867073059082,
-    "part3_plv_kl_thr_edges": 1.2466794252395628,
-    "part3_plv_cv_thr_nodes": 0.16584655940532683,
-    "part3_plv_kl_thr_nodes": 1.183583879470825,
-    "part3_plv_best_model": "logreg",
-    "part3_plv_best_val_acc": 0.6,
-    "part3_plv_best_test_acc": 0.5137614678899083,
+    "part3_plv_selected_edge_count": 152,
+    "part3_plv_selected_node_count": 4,
+    "part3_plv_cv_thr_edges": 0.23130139112472534,
+    "part3_plv_kl_thr_edges": 1.6373201131820676,
+    "part3_plv_cv_thr_nodes": 0.16586851924657822,
+    "part3_plv_kl_thr_nodes": 1.6069116592407227,
+    "part3_plv_best_model": "svm_rbf",
+    "part3_plv_best_val_acc": 0.6036036036036037,
+    "part3_plv_best_test_acc": 0.46788990825688076,
     "part3_plv_best_val_cm": [
       [
-        25,
-        12
+        33,
+        22
       ],
       [
-        18,
-        20
+        22,
+        34
       ]
     ],
     "part3_plv_best_test_cm": [
       [
-        34,
-        20
+        25,
+        29
       ],
       [
-        33,
-        22
+        29,
+        26
       ]
     ],
     "part3_plv_best_params": {
       "clf__C": 10.0,
-      "clf__penalty": "l2"
+      "clf__gamma": 0.01
     },
     "part3_plv_landscape_plots": [
       "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\trained_models\\Subject_001\\Session_001_runs\\PLV_landscape_edges_CV_vs_KL.png",

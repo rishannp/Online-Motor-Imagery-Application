@@ -2,14 +2,11 @@
 #
 # PART 1: Fine-tune GAT (select best by VAL, report final TEST)
 # PART 2: CSP + classical models (grid search on TRAIN only, pick best by VAL, report TEST)
-#         + FIX: CSP topoplots via MNE EvokedArray.plot_topomap (stable across MNE versions)
-# PART 3: Feature landscape using PLV:
-#         - PLV -> transform X = -log(1-PLV+eps), diag=0
-#         - Extract EDGE features (upper triangle) and NODE features (node strength)
-#         - Compute CV (x-axis) and symmetric KL divergence (y-axis) on TRAIN ONLY
-#         - Save scatter plots + raw arrays so you can select thresholds/features manually
+#         + CSP topoplots via MNE EvokedArray.plot_topomap
+#         + NEW: CSP can run on either ALL channels or a MOTOR subset (toggle below)
+# PART 3: Feature landscape using PLV (CV vs symmetric KL on TRAIN ONLY)
 #
-# Split: per-class temporal split 50% train / 20% val / 30% test (by window time index t)
+# Split: per-class temporal split (by window time index t)
 
 import os
 import json
@@ -45,16 +42,16 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 # =============================
 # CONFIG
 # =============================
-SESSION_PKL = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_000\Session_005\session_data.pkl"
+SESSION_PKL = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_004\Session_001\session_data.pkl"
 FOUNDATION_PT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\3s_0.5s_8-30Hz_model.pt"
-OUT_DIR = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Subject_000\Session_001_runs"
+OUT_DIR = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Subject_004\Session_001_runs"
 
 # --- Windowing ---
 WINDOW_SEC          = 3.0
 OVERLAP_SEC         = 0.5
 KEEP_SHORT_AS_FULL  = True
 
-# --- Preprocessing 
+# --- Preprocessing
 APPLY_BANDPASS      = True
 BP_LO, BP_HI        = 8.0, 30.0
 BP_ORDER            = 4
@@ -82,14 +79,25 @@ TEST_FRAC  = 0.30
 CSP_NCOMP = 6
 CSP_REG   = 1e-6
 
+#  CSP channel selection toggle
+CSP_MOTOR_SUBSET = True   # True -> CSP only on motor subset, False -> CSP on all 58
+
+# Define motor subset in SHARED_58 naming (edit if you want tighter/looser set)
+CSP_MOTOR_CHS = [
+    "FC5","FC3","FC1","FCz","FC2","FC4","FC6",
+    "C5","C3","C1","Cz","C2","C4","C6",
+    "CP5","CP3","CP1","CPz","CP2","CP4","CP6",
+    "P5","P3","P1","Pz","P2","P4","P6",
+]
+
 # --- PLV feature landscape ---
 KL_NBINS = 20
 KL_EPS   = 1e-12
 CV_EPS   = 1e-10
 
 # --- Part 3 selection thresholds ---
-CV_KEEP_PCTL = 30   # keep lowest 30% CV (stable)
-KL_KEEP_PCTL = 70   # keep highest 30% KL (discriminative) == >= 70th percentile
+CV_KEEP_PCTL = 30
+KL_KEEP_PCTL = 70
 
 
 # ---------------------------
@@ -132,6 +140,9 @@ def set_seeds(seed=RNG_SEED):
 # =============================
 def idx_map(src_names, keep_names):
     src_idx = {ch: i for i, ch in enumerate(src_names)}
+    missing = [ch for ch in keep_names if ch not in src_idx]
+    if missing:
+        raise RuntimeError(f"Missing channels in src list: {missing}")
     return [src_idx[ch] for ch in keep_names]
 
 def load_trials_one_session(session_pkl_path):
@@ -422,7 +433,7 @@ def class_weight_tensor(graphs, device, num_classes: int = 2):
 
 
 # =============================
-# PART 2: CSP + robust MNE topoplots
+# PART 2: CSP
 # =============================
 def _cov_trial(X_CT, reg=CSP_REG):
     X = X_CT - X_CT.mean(axis=1, keepdims=True)
@@ -464,11 +475,10 @@ def csp_transform(X, W, picks):
         feats.append(np.log(var + 1e-12))
     return np.stack(feats, axis=0).astype(np.float32)
 
-def save_csp_topoplots_mne(A_patterns, picks, out_dir, prefix="CSP_topomap_patterns", n_plot=None):
+def save_csp_topoplots_mne(A_patterns, picks, out_dir, prefix="CSP_topomap_patterns", n_plot=None, ch_names=None):
     """
     Plot CSP spatial patterns (A) as scalp topomaps.
-    - If n_plot is None: plot ALL components in picks
-    - Else: plot the first n_plot components in picks
+    IMPORTANT: ch_names must correspond to A_patterns rows.
     """
     try:
         import mne
@@ -479,18 +489,17 @@ def save_csp_topoplots_mne(A_patterns, picks, out_dir, prefix="CSP_topomap_patte
         )
 
     os.makedirs(out_dir, exist_ok=True)
+    if ch_names is None:
+        ch_names = SHARED_58
 
-    info = mne.create_info(ch_names=SHARED_58, sfreq=256.0, ch_types="eeg")
+    info = mne.create_info(ch_names=ch_names, sfreq=256.0, ch_types="eeg")
     montage = mne.channels.make_standard_montage("standard_1020")
     info.set_montage(montage, match_case=False, on_missing="warn")
 
-    if n_plot is None:
-        comps = list(picks)
-    else:
-        comps = list(picks[:int(n_plot)])
+    comps = list(picks) if n_plot is None else list(picks[:int(n_plot)])
 
     for i, comp in enumerate(comps, start=1):
-        vals = A_patterns[:, comp].astype(np.float64)  # [58]
+        vals = A_patterns[:, comp].astype(np.float64)
         evoked = mne.EvokedArray(vals[:, None], info, tmin=0.0)
 
         fig = evoked.plot_topomap(
@@ -508,66 +517,35 @@ def save_csp_topoplots_mne(A_patterns, picks, out_dir, prefix="CSP_topomap_patte
         plt.close(fig)
 
 
-
 # =============================
 # Classical model zoo + VAL selection
 # =============================
 def classical_model_zoo():
     zoo = {}
-
-    zoo["logreg"] = (
-        LogisticRegression(max_iter=2000, solver="liblinear"),
-        {"clf__C": [0.01, 0.1, 1.0, 10.0], "clf__penalty": ["l1", "l2"]}
-    )
-    zoo["svm_linear"] = (
-        SVC(kernel="linear"),
-        {"clf__C": [0.01, 0.1, 1.0, 10.0]}
-    )
-    zoo["svm_rbf"] = (
-        SVC(kernel="rbf"),
-        {"clf__C": [0.1, 1.0, 10.0], "clf__gamma": ["scale", 0.01, 0.1, 1.0]}
-    )
-    zoo["knn"] = (
-        KNeighborsClassifier(),
-        {"clf__n_neighbors": [3, 5, 9, 15], "clf__weights": ["uniform", "distance"]}
-    )
-    zoo["rf"] = (
-        RandomForestClassifier(),
-        {"clf__n_estimators": [200, 500], "clf__max_depth": [None, 5, 10]}
-    )
-    zoo["gboost"] = (
-        GradientBoostingClassifier(),
-        {"clf__n_estimators": [100, 300], "clf__learning_rate": [0.05, 0.1], "clf__max_depth": [2, 3]}
-    )
-
+    zoo["logreg"] = (LogisticRegression(max_iter=2000, solver="liblinear"),
+                    {"clf__C": [0.01, 0.1, 1.0, 10.0], "clf__penalty": ["l1", "l2"]})
+    zoo["svm_linear"] = (SVC(kernel="linear"),
+                        {"clf__C": [0.01, 0.1, 1.0, 10.0]})
+    zoo["svm_rbf"] = (SVC(kernel="rbf"),
+                     {"clf__C": [0.1, 1.0, 10.0], "clf__gamma": ["scale", 0.01, 0.1, 1.0]})
+    zoo["knn"] = (KNeighborsClassifier(),
+                 {"clf__n_neighbors": [3, 5, 9, 15], "clf__weights": ["uniform", "distance"]})
+    zoo["rf"] = (RandomForestClassifier(),
+                {"clf__n_estimators": [200, 500], "clf__max_depth": [None, 5, 10]})
+    zoo["gboost"] = (GradientBoostingClassifier(),
+                    {"clf__n_estimators": [100, 300], "clf__learning_rate": [0.05, 0.1], "clf__max_depth": [2, 3]})
     return zoo
 
 def fit_grid_on_train_select_by_val(Xtr, ytr, Xva, yva, Xte, yte, out_dir, tag):
     os.makedirs(out_dir, exist_ok=True)
 
     all_results = []
-    best = {
-        "name": None,
-        "val_acc": -1.0,
-        "test_acc": None,
-        "val_cm": None,
-        "test_cm": None,
-        "best_params": None
-    }
+    best = {"name": None, "val_acc": -1.0, "test_acc": None, "val_cm": None, "test_cm": None, "best_params": None}
 
     for name, (base_clf, grid) in classical_model_zoo().items():
-        pipe = Pipeline([
-            ("scaler", StandardScaler()),
-            ("clf", base_clf)
-        ])
+        pipe = Pipeline([("scaler", StandardScaler()), ("clf", base_clf)])
 
-        gs = GridSearchCV(
-            estimator=pipe,
-            param_grid=grid,
-            scoring="accuracy",
-            cv=5,
-            n_jobs=-1
-        )
+        gs = GridSearchCV(pipe, grid, scoring="accuracy", cv=5, n_jobs=-1)
         gs.fit(Xtr, ytr)
 
         yhat_va = gs.best_estimator_.predict(Xva)
@@ -578,15 +556,14 @@ def fit_grid_on_train_select_by_val(Xtr, ytr, Xva, yva, Xte, yte, out_dir, tag):
         te_acc = accuracy_score(yte, yhat_te)
         te_cm  = confusion_matrix(yte, yhat_te, labels=[0,1]).astype(int)
 
-        row = {
+        all_results.append({
             "model": name,
             "val_acc": float(va_acc),
             "val_cm": va_cm.tolist(),
             "test_acc": float(te_acc),
             "test_cm": te_cm.tolist(),
             "best_params": gs.best_params_
-        }
-        all_results.append(row)
+        })
 
         if va_acc > best["val_acc"]:
             best.update({
@@ -702,26 +679,15 @@ def plot_landscape(cv_e, kl_e, cv_n, kl_n, out_dir, tag="PLV"):
     plt.close()
 
 def select_features_by_cv_kl(cv, kl, cv_keep_pctl=30, kl_keep_pctl=70):
-    """
-    Keep features with:
-      cv <= percentile(cv, cv_keep_pctl)
-      kl >= percentile(kl, kl_keep_pctl)
-    Returns:
-      sel_idx (np.ndarray), thresholds (cv_thr, kl_thr)
-    """
     cv_thr = float(np.percentile(cv, cv_keep_pctl))
     kl_thr = float(np.percentile(kl, kl_keep_pctl))
     sel = np.where((cv <= cv_thr) & (kl >= kl_thr))[0]
     return sel.astype(int), cv_thr, kl_thr
 
 def apply_feature_mask(F_edges, F_nodes, sel_e, sel_n):
-    """
-    Concatenate masked edges and nodes into one feature vector per sample.
-    """
     Fe = F_edges[:, sel_e] if sel_e.size > 0 else np.zeros((F_edges.shape[0], 0), dtype=np.float32)
     Fn = F_nodes[:, sel_n] if sel_n.size > 0 else np.zeros((F_nodes.shape[0], 0), dtype=np.float32)
     return np.concatenate([Fe, Fn], axis=1).astype(np.float32)
-
 
 
 # =============================
@@ -747,9 +713,7 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
 
     x_in = graphs[0].x.shape[1]
     if int(x_in) != int(in_ch):
-        raise RuntimeError(
-            f"Feature dim mismatch: model expects in_ch={in_ch}, but graph has x.shape[1]={x_in}."
-        )
+        raise RuntimeError(f"Feature dim mismatch: model expects in_ch={in_ch}, but graph has x.shape[1]={x_in}.")
 
     # Foundation eval
     full_loader = DataLoader(graphs, batch_size=BATCH_SIZE, shuffle=False)
@@ -761,9 +725,7 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     # -------------------------
     # Train/Val/Test split (temporal per class)
     # -------------------------
-    tr_idx, va_idx, te_idx = temporal_split_per_class_train_val_test(
-        graphs, y_all, TRAIN_FRAC, VAL_FRAC
-    )
+    tr_idx, va_idx, te_idx = temporal_split_per_class_train_val_test(graphs, y_all, TRAIN_FRAC, VAL_FRAC)
     train_graphs = [graphs[i] for i in tr_idx]
     val_graphs   = [graphs[i] for i in va_idx]
     test_graphs  = [graphs[i] for i in te_idx]
@@ -782,7 +744,7 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     test_loader  = DataLoader(test_graphs,  batch_size=BATCH_SIZE, shuffle=False)
 
     # =============================
-    # PART 1 — Fine-tune GAT (select by VAL, final TEST)
+    # PART 1 — Fine-tune GAT
     # =============================
     model_ft = SimpleGAT(in_ch, h1, h2, h3, heads).to(device)
     model_ft.load_state_dict(sd)
@@ -836,13 +798,9 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     # =============================
     # Build epochs (aligned) for CSP + PLV landscape
     # =============================
-    X_epochs, y_epochs, _t_epochs = build_window_epochs(
-        trials, sfreq, WINDOW_SEC, OVERLAP_SEC, KEEP_SHORT_AS_FULL
-    )
+    X_epochs, y_epochs, _t_epochs = build_window_epochs(trials, sfreq, WINDOW_SEC, OVERLAP_SEC, KEEP_SHORT_AS_FULL)
     if len(X_epochs) != len(graphs):
-        raise RuntimeError(
-            f"Epoch/Graph alignment mismatch: epochs={len(X_epochs)} vs graphs={len(graphs)}."
-        )
+        raise RuntimeError(f"Epoch/Graph alignment mismatch: epochs={len(X_epochs)} vs graphs={len(graphs)}.")
 
     Xtr = X_epochs[tr_idx]; ytr = y_epochs[tr_idx]
     Xva = X_epochs[va_idx]; yva = y_epochs[va_idx]
@@ -855,18 +813,34 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     print("PART 2 — CSP + Classical Models")
     print("=============================")
 
-    W_csp, A_csp, picks_csp = fit_csp(Xtr, ytr, n_components=CSP_NCOMP, reg=CSP_REG)
-    Ftr_csp = csp_transform(Xtr, W_csp, picks_csp)
-    Fva_csp = csp_transform(Xva, W_csp, picks_csp)
-    Fte_csp = csp_transform(Xte, W_csp, picks_csp)
+    # NEW: choose CSP channels
+    if CSP_MOTOR_SUBSET:
+        csp_chs = CSP_MOTOR_CHS
+        print(f"[PART 2] CSP channels: MOTOR subset ({len(csp_chs)} chs)")
+    else:
+        csp_chs = SHARED_58
+        print(f"[PART 2] CSP channels: ALL ({len(csp_chs)} chs)")
 
-    save_csp_topoplots_mne(A_csp, picks_csp, out_dir, prefix="CSP_topomap_patterns", n_plot=CSP_NCOMP)
+    csp_idx = np.array(idx_map(SHARED_58, csp_chs), dtype=int)
 
+    # Slice epochs to CSP channels only: X: [N, C, T] -> [N, C_sub, T]
+    Xtr_csp = Xtr[:, csp_idx, :]
+    Xva_csp = Xva[:, csp_idx, :]
+    Xte_csp = Xte[:, csp_idx, :]
+
+    W_csp, A_csp, picks_csp = fit_csp(Xtr_csp, ytr, n_components=CSP_NCOMP, reg=CSP_REG)
+    Ftr_csp = csp_transform(Xtr_csp, W_csp, picks_csp)
+    Fva_csp = csp_transform(Xva_csp, W_csp, picks_csp)
+    Fte_csp = csp_transform(Xte_csp, W_csp, picks_csp)
+
+    # Topos now match the CSP channel set (motor subset plots will be motor-only montage)
+    topo_prefix = "CSP_topomap_patterns_MOTOR" if CSP_MOTOR_SUBSET else "CSP_topomap_patterns_ALL"
+    save_csp_topoplots_mne(A_csp, picks_csp, out_dir, prefix=topo_prefix, n_plot=CSP_NCOMP, ch_names=csp_chs)
 
     best_csp, _ = fit_grid_on_train_select_by_val(
         Ftr_csp, ytr, Fva_csp, yva, Fte_csp, yte,
         out_dir=out_dir,
-        tag="PART2_CSP"
+        tag="PART2_CSP_MOTOR" if CSP_MOTOR_SUBSET else "PART2_CSP_ALL"
     )
     print(f"[PART 2] Best-by-VAL: {best_csp['name']} | Val {best_csp['val_acc']:.2%} | Test {best_csp['test_acc']:.2%}")
 
@@ -900,26 +874,16 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     sel_e, cv_thr_e, kl_thr_e = select_features_by_cv_kl(cv_e, kl_e, CV_KEEP_PCTL, KL_KEEP_PCTL)
     sel_n, cv_thr_n, kl_thr_n = select_features_by_cv_kl(cv_n, kl_n, CV_KEEP_PCTL, KL_KEEP_PCTL)
 
-    print(
-        f"[PART 3] Edge feats: total={F_edges.shape[1]}, selected={sel_e.size} "
-        f"(CV<=p{CV_KEEP_PCTL}:{cv_thr_e:.4f}, KL>=p{KL_KEEP_PCTL}:{kl_thr_e:.4f})"
-    )
-    print(
-        f"[PART 3] Node feats: total={F_nodes.shape[1]}, selected={sel_n.size} "
-        f"(CV<=p{CV_KEEP_PCTL}:{cv_thr_n:.4f}, KL>=p{KL_KEEP_PCTL}:{kl_thr_n:.4f})"
-    )
+    print(f"[PART 3] Edge feats: total={F_edges.shape[1]}, selected={sel_e.size} (CV<=p{CV_KEEP_PCTL}:{cv_thr_e:.4f}, KL>=p{KL_KEEP_PCTL}:{kl_thr_e:.4f})")
+    print(f"[PART 3] Node feats: total={F_nodes.shape[1]}, selected={sel_n.size} (CV<=p{CV_KEEP_PCTL}:{cv_thr_n:.4f}, KL>=p{KL_KEEP_PCTL}:{kl_thr_n:.4f})")
 
     Xtr_sel = apply_feature_mask(F_edges_tr, F_nodes_tr, sel_e, sel_n)
     Xva_sel = apply_feature_mask(F_edges_va, F_nodes_va, sel_e, sel_n)
     Xte_sel = apply_feature_mask(F_edges_te, F_nodes_te, sel_e, sel_n)
 
     if Xtr_sel.shape[1] == 0:
-        raise RuntimeError(
-            "PART 3 selected 0 features. This can happen if thresholds are too strict "
-            "or KL/CV are near-flat."
-        )
+        raise RuntimeError("PART 3 selected 0 features. Loosen thresholds or inspect the landscape.")
 
-    # Save selection + stats (THIS is the file you want to reference in results)
     fs_path = os.path.join(out_dir, "PART3_PLV_selected_features_CVKL.npz")
     np.savez(
         fs_path,
@@ -941,9 +905,6 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
     )
     print(f"[PART 3] Best-by-VAL: {best_plv_sel['name']} | Val {best_plv_sel['val_acc']:.2%} | Test {best_plv_sel['test_acc']:.2%}")
 
-    # -------------------------
-    # Collate results (FIXED)
-    # -------------------------
     results = {
         "window_sec": float(WINDOW_SEC),
         "overlap_sec": float(OVERLAP_SEC),
@@ -963,23 +924,24 @@ def run_pipeline(trials, sfreq, sd_path, out_dir, device):
         "foundation_acc_all": float(foundation_acc),
         "foundation_cm_all": foundation_cm.tolist(),
 
-        # PART 1
         "part1_gat_best_val_acc": float(best_val_acc),
         "part1_gat_best_val_cm": best_val_cm.tolist() if best_val_cm is not None else None,
         "part1_gat_test_acc": float(test_acc_gat),
         "part1_gat_test_cm": test_cm_gat.tolist(),
         "part1_gat_saved_to": pt_path,
 
-        # PART 2
+        # PART 2 (now includes channel mode)
+        "part2_csp_mode": "motor_subset" if CSP_MOTOR_SUBSET else "all",
+        "part2_csp_channels": csp_chs,
         "part2_csp_best_model": best_csp["name"],
         "part2_csp_best_val_acc": float(best_csp["val_acc"]),
         "part2_csp_best_test_acc": float(best_csp["test_acc"]),
         "part2_csp_best_val_cm": best_csp["val_cm"],
         "part2_csp_best_test_cm": best_csp["test_cm"],
         "part2_csp_best_params": best_csp["best_params"],
-        "part2_csp_topos_prefix": "CSP_topomap_patterns_top*_comp*.png",
+        "part2_csp_topos_prefix": f"{topo_prefix}_rank*_comp*.png",
 
-        # PART 3 (FIX: correct keys + store best model info)
+        # PART 3
         "part3_plv_feature_selection_npz": fs_path,
         "part3_plv_selected_edge_count": int(sel_e.size),
         "part3_plv_selected_node_count": int(sel_n.size),

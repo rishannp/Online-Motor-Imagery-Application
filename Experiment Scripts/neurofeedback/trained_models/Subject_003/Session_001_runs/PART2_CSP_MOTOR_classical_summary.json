@@ -1,0 +1,209 @@
+{
+  "tag": "PART2_CSP_MOTOR",
+  "all": [
+    {
+      "model": "logreg",
+      "val_acc": 0.88,
+      "val_cm": [
+        [
+          32,
+          9
+        ],
+        [
+          0,
+          34
+        ]
+      ],
+      "test_acc": 0.6338028169014085,
+      "test_cm": [
+        [
+          13,
+          26
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.01,
+        "clf__penalty": "l2"
+      }
+    },
+    {
+      "model": "svm_linear",
+      "val_acc": 0.88,
+      "val_cm": [
+        [
+          32,
+          9
+        ],
+        [
+          0,
+          34
+        ]
+      ],
+      "test_acc": 0.6619718309859155,
+      "test_cm": [
+        [
+          15,
+          24
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.1
+      }
+    },
+    {
+      "model": "svm_rbf",
+      "val_acc": 0.8666666666666667,
+      "val_cm": [
+        [
+          35,
+          6
+        ],
+        [
+          4,
+          30
+        ]
+      ],
+      "test_acc": 0.6338028169014085,
+      "test_cm": [
+        [
+          23,
+          16
+        ],
+        [
+          10,
+          22
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0,
+        "clf__gamma": "scale"
+      }
+    },
+    {
+      "model": "knn",
+      "val_acc": 0.8666666666666667,
+      "val_cm": [
+        [
+          36,
+          5
+        ],
+        [
+          5,
+          29
+        ]
+      ],
+      "test_acc": 0.6056338028169014,
+      "test_cm": [
+        [
+          16,
+          23
+        ],
+        [
+          5,
+          27
+        ]
+      ],
+      "best_params": {
+        "clf__n_neighbors": 3,
+        "clf__weights": "uniform"
+      }
+    },
+    {
+      "model": "rf",
+      "val_acc": 0.84,
+      "val_cm": [
+        [
+          33,
+          8
+        ],
+        [
+          4,
+          30
+        ]
+      ],
+      "test_acc": 0.6901408450704225,
+      "test_cm": [
+        [
+          23,
+          16
+        ],
+        [
+          6,
+          26
+        ]
+      ],
+      "best_params": {
+        "clf__max_depth": null,
+        "clf__n_estimators": 200
+      }
+    },
+    {
+      "model": "gboost",
+      "val_acc": 0.8933333333333333,
+      "val_cm": [
+        [
+          38,
+          3
+        ],
+        [
+          5,
+          29
+        ]
+      ],
+      "test_acc": 0.6901408450704225,
+      "test_cm": [
+        [
+          24,
+          15
+        ],
+        [
+          7,
+          25
+        ]
+      ],
+      "best_params": {
+        "clf__learning_rate": 0.05,
+        "clf__max_depth": 2,
+        "clf__n_estimators": 100
+      }
+    }
+  ],
+  "best": {
+    "name": "gboost",
+    "val_acc": 0.8933333333333333,
+    "test_acc": 0.6901408450704225,
+    "val_cm": [
+      [
+        38,
+        3
+      ],
+      [
+        5,
+        29
+      ]
+    ],
+    "test_cm": [
+      [
+        24,
+        15
+      ],
+      [
+        7,
+        25
+      ]
+    ],
+    "best_params": {
+      "clf__learning_rate": 0.05,
+      "clf__max_depth": 2,
+      "clf__n_estimators": 100
+    }
+  }
+}

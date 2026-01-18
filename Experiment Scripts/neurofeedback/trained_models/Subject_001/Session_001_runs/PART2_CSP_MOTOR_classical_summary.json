@@ -1,0 +1,208 @@
+{
+  "tag": "PART2_CSP_MOTOR",
+  "all": [
+    {
+      "model": "logreg",
+      "val_acc": 0.6216216216216216,
+      "val_cm": [
+        [
+          41,
+          14
+        ],
+        [
+          28,
+          28
+        ]
+      ],
+      "test_acc": 0.5596330275229358,
+      "test_cm": [
+        [
+          27,
+          27
+        ],
+        [
+          21,
+          34
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0,
+        "clf__penalty": "l1"
+      }
+    },
+    {
+      "model": "svm_linear",
+      "val_acc": 0.5855855855855856,
+      "val_cm": [
+        [
+          37,
+          18
+        ],
+        [
+          28,
+          28
+        ]
+      ],
+      "test_acc": 0.6055045871559633,
+      "test_cm": [
+        [
+          29,
+          25
+        ],
+        [
+          18,
+          37
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0
+      }
+    },
+    {
+      "model": "svm_rbf",
+      "val_acc": 0.5405405405405406,
+      "val_cm": [
+        [
+          31,
+          24
+        ],
+        [
+          27,
+          29
+        ]
+      ],
+      "test_acc": 0.4036697247706422,
+      "test_cm": [
+        [
+          18,
+          36
+        ],
+        [
+          29,
+          26
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0,
+        "clf__gamma": 1.0
+      }
+    },
+    {
+      "model": "knn",
+      "val_acc": 0.5045045045045045,
+      "val_cm": [
+        [
+          29,
+          26
+        ],
+        [
+          29,
+          27
+        ]
+      ],
+      "test_acc": 0.3853211009174312,
+      "test_cm": [
+        [
+          17,
+          37
+        ],
+        [
+          30,
+          25
+        ]
+      ],
+      "best_params": {
+        "clf__n_neighbors": 9,
+        "clf__weights": "uniform"
+      }
+    },
+    {
+      "model": "rf",
+      "val_acc": 0.5315315315315315,
+      "val_cm": [
+        [
+          34,
+          21
+        ],
+        [
+          31,
+          25
+        ]
+      ],
+      "test_acc": 0.45871559633027525,
+      "test_cm": [
+        [
+          22,
+          32
+        ],
+        [
+          27,
+          28
+        ]
+      ],
+      "best_params": {
+        "clf__max_depth": null,
+        "clf__n_estimators": 200
+      }
+    },
+    {
+      "model": "gboost",
+      "val_acc": 0.5765765765765766,
+      "val_cm": [
+        [
+          33,
+          22
+        ],
+        [
+          25,
+          31
+        ]
+      ],
+      "test_acc": 0.48623853211009177,
+      "test_cm": [
+        [
+          20,
+          34
+        ],
+        [
+          22,
+          33
+        ]
+      ],
+      "best_params": {
+        "clf__learning_rate": 0.1,
+        "clf__max_depth": 2,
+        "clf__n_estimators": 100
+      }
+    }
+  ],
+  "best": {
+    "name": "logreg",
+    "val_acc": 0.6216216216216216,
+    "test_acc": 0.5596330275229358,
+    "val_cm": [
+      [
+        41,
+        14
+      ],
+      [
+        28,
+        28
+      ]
+    ],
+    "test_cm": [
+      [
+        27,
+        27
+      ],
+      [
+        21,
+        34
+      ]
+    ],
+    "best_params": {
+      "clf__C": 10.0,
+      "clf__penalty": "l1"
+    }
+  }
+}
