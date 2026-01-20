@@ -81,16 +81,21 @@ def main():
             if samples_since_last_infer < step:
                 continue
 
-            # Consume exactly one 'step' worth of advancement per inference.
-            # (If we got a bigger chunk, we keep the remainder.)
-            samples_since_last_infer %= step
+            # ---- FIX: don't silently skip inference cycles when chunk > step ----
+            n_infers = samples_since_last_infer // step
+            samples_since_last_infer = samples_since_last_infer % step
 
-            window = np.asarray(buf, dtype=np.float32)  # [win, 64]
+            cmd = last_cmd
 
-            raw_eeg_q.clear()
-            raw_eeg_q.append(window)
+            # Advance the pipeline state once per 'step' so baseline/smoothing timing stays honest.
+            # We only emit the final cmd (prevents queue spam).
+            for _ in range(int(n_infers)):
+                window = np.asarray(buf, dtype=np.float32)  # [win, 64]
 
-            cmd = pipeline.process(window, n_new=step)
+                raw_eeg_q.clear()
+                raw_eeg_q.append(window)
+
+                cmd = pipeline.process(window, n_new=step)
 
             if cmd != last_cmd:
                 action_q.put(cmd)
@@ -99,7 +104,7 @@ def main():
             now = time.time()
             if now - last_dbg > 1.0:
                 print(
-                    f"[GRAPH] cmd={cmd} chunk={tuple(chunk.shape)} window={tuple(window.shape)}",
+                    f"[GRAPH] cmd={cmd} chunk={tuple(chunk.shape)} window={tuple(window.shape)} infers={int(n_infers)}",
                     flush=True,
                 )
                 last_dbg = now

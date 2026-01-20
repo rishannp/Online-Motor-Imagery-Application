@@ -14,7 +14,7 @@ Author: Rishan (edited by ChatGPT)
 # User-adjustable parameters
 # =========================
 
-PKL_PATH = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_003\Session_001\session_data.pkl"
+PKL_PATH = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_000\Session_006\session_data.pkl"
 
 STREAM_NAME = "ReplayOnlineSession"
 STREAM_TYPE = "EEG"
