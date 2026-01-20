@@ -1,0 +1,84 @@
+Impedance measurement on 2026-01-05_19:21:45 (UTC+00:00)
+
+Devices: HA-2025.03.05
+Ch.no. 	Channel name 	Impedance values (kilo-ohm)
+     1 	1            	channel not selected
+     2 	2            	23.3
+     3 	3            	26.7
+     4 	4            	36.8
+     5 	5            	52.1
+     6 	6            	25.4
+     7 	7            	49.9
+     8 	8            	33.2
+     9 	9            	33.5
+    10 	10           	43.8
+    11 	11           	28.8
+    12 	12           	21.3
+    13 	13           	10.0
+    14 	14           	37.4
+    15 	15           	53.8
+    16 	16           	42.3
+    17 	17           	23.5
+    18 	18           	47.7
+    19 	19           	16.1
+    20 	20           	42.1
+    21 	21           	33.4
+    22 	22           	51.6
+    23 	23           	36.6
+    24 	24           	47.7
+    25 	25           	57.5
+    26 	26           	55.3
+    27 	27           	37.7
+    28 	28           	23.4
+    29 	29           	24.9
+    30 	30           	54.9
+    31 	31           	8.8
+    32 	32           	38.3
+    33 	33           	21.1
+    34 	34           	25.7
+    35 	35           	23.5
+    36 	36           	21.7
+    37 	37           	16.2
+    38 	38           	13.7
+    39 	39           	58.9
+    40 	40           	44.7
+    41 	41           	11.4
+    42 	42           	25.0
+    43 	43           	16.3
+    44 	44           	20.6
+    45 	45           	17.0
+    46 	46           	9.3
+    47 	47           	9.9
+    48 	48           	9.4
+    49 	49           	22.3
+    50 	50           	24.1
+    51 	51           	27.9
+    52 	52           	14.7
+    53 	53           	17.8
+    54 	54           	12.6
+    55 	55           	9.7
+    56 	56           	15.4
+    57 	57           	32.6
+    58 	58           	39.7
+    59 	59           	38.4
+    60 	60           	24.5
+    61 	61           	17.3
+    62 	62           	18.1
+    63 	63           	18.8
+    64 	64           	9.7
+    65 	65           	invalid impedance (couldn't be measured, calculated or estimated)
+    66 	66           	invalid impedance (couldn't be measured, calculated or estimated)
+    67 	67           	invalid impedance (couldn't be measured, calculated or estimated)
+    68 	68           	invalid impedance (couldn't be measured, calculated or estimated)
+    69 	69           	invalid impedance (couldn't be measured, calculated or estimated)
+    70 	70           	invalid impedance (couldn't be measured, calculated or estimated)
+    71 	71           	invalid impedance (couldn't be measured, calculated or estimated)
+    72 	72           	invalid impedance (couldn't be measured, calculated or estimated)
+    73 	73           	invalid impedance (couldn't be measured, calculated or estimated)
+    74 	74           	invalid impedance (couldn't be measured, calculated or estimated)
+    75 	75           	invalid impedance (couldn't be measured, calculated or estimated)
+    76 	76           	invalid impedance (couldn't be measured, calculated or estimated)
+    77 	77           	invalid impedance (couldn't be measured, calculated or estimated)
+    78 	78           	invalid impedance (couldn't be measured, calculated or estimated)
+    79 	79           	invalid impedance (couldn't be measured, calculated or estimated)
+    80 	80           	invalid impedance (couldn't be measured, calculated or estimated)

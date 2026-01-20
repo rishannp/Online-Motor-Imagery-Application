@@ -7,11 +7,9 @@ import os
 GRAPH_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\graph_ml"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "004"
-
+SUBJECT_ID = "000"
 # ─── TRAINING SOURCE SESSION (read pkl from neurofeedback) ───────────────
-TRAIN_SESSION_ID = "001"
-
+TRAIN_SESSION_ID = "006"
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────
 CURRENT_SESSION_ID = "002"
 
@@ -44,8 +42,8 @@ MODEL_OUT_DIR = os.path.join(
 )
 os.makedirs(MODEL_OUT_DIR, exist_ok=True)
 
-# ─── GAME PARAMETERS (KEEP 1:1 WITH OTHER PIPELINES) ─────────────────────
-NUM_LEVELS        = 10
+# ─── GAME PARAMETERS ─────────────────────
+NUM_LEVELS        = 5
 TRIALS_PER_LEVEL  = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
@@ -56,7 +54,7 @@ TRIAL_DURATION = 10.0
 # ─── STREAM + WINDOWING (KEEP 1:1 WITH OTHER PIPELINES) ──────────────────
 SAMPLING_RATE     = 256
 FEEDBACK_INTERVAL = 0.04
-WINDOW_SIZE       = SAMPLING_RATE * 2
+WINDOW_SIZE       = SAMPLING_RATE * 1
 STEP_SIZE         = int(FEEDBACK_INTERVAL * SAMPLING_RATE)  # inference cadence
 
 # ─── BASELINE (match game baseline behavior) ─────────────────────────────

@@ -16,182 +16,106 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 
 from config import (
     SUBJECT_ID, TRAIN_SESSION_ID, CURRENT_SESSION_ID,
     TRAIN_SESSION_PKL, MODEL_OUT_DIR,
     SAMPLING_RATE, WINDOW_SIZE, STEP_SIZE,
-    EPSILON, KL_NBINS, KL_EPS, CV_EPS,
-    CV_KEEP_PCTL, KL_KEEP_PCTL,
+    APPLY_BANDPASS,
 )
 
-from preprocess import HEADSET_64, SHARED_58, idx_map
-from preprocess import preprocess_window  # uses your bandpass/zscore settings
 
-def load_trials_one_session(session_pkl_path):
-    if not os.path.isfile(session_pkl_path):
-        raise FileNotFoundError(f"Missing session file: {session_pkl_path}")
-    with open(session_pkl_path, 'rb') as f:
-        d = pickle.load(f)
+try:
+    from config import (
+        EPSILON, KL_NBINS, KL_EPS, CV_EPS,
+        CV_KEEP_PCTL, KL_KEEP_PCTL,
+    )
+    
+except Exception:
+    EPSILON = 1e-6
+    KL_NBINS = 64
+    KL_EPS = 1e-12
+    CV_EPS = 1e-12
+    CV_KEEP_PCTL = 20
+    KL_KEEP_PCTL = 20
+    print(
+        "[GRAPH TRAIN][WARN] Missing graph params in config.py "
+        "(EPSILON/KL_NBINS/KL_EPS/CV_EPS/CV_KEEP_PCTL/KL_KEEP_PCTL). "
+        "Using defaults inside graph_training.py.",
+        flush=True
+    )
 
-    trials = []
-    for _, rec in d.items():
-        eeg = rec.get('eeg', None)
-        if eeg is None or getattr(eeg, 'size', 0) == 0:
-            continue
-        trials.append(rec)
+from preprocess import (
+    HEADSET_64,
+    preprocess_trial_58,  # causal, trial-level
+)
 
-    if not trials:
-        raise RuntimeError("No usable trials in session file.")
-    return trials
+# ─────────────────────────────────────────────────────────────────────────
+# Helpers: windowing, PLV features, stats, selection
+# ─────────────────────────────────────────────────────────────────────────
 
-def segment_trial_to_windows(eeg_t64: np.ndarray, win: int, hop: int):
-    """
-    eeg_t64: [T,64] (we'll transpose from saved [64,T])
-    returns: list of [win,64]
-    """
-    T = eeg_t64.shape[0]
+def segment_trial_to_windows(eeg_tc: np.ndarray, win: int, hop: int):
+    """eeg_tc: [T, C] -> windows: [N, win, C]"""
+    T, C = eeg_tc.shape
     if T < win:
-        return []
+        return np.empty((0, win, C), dtype=np.float32)
     out = []
     for start in range(0, T - win + 1, hop):
-        out.append(eeg_t64[start:start+win].astype(np.float32))
-    return out
+        out.append(eeg_tc[start:start + win].astype(np.float32))
+    return np.stack(out, axis=0)
 
-def build_windows_from_trials(trials):
-    """
-    Builds windows in the SAME cadence as online (WINDOW_SIZE, STEP_SIZE).
-    Returns:
-      X_win: [N, win, 64]
-      y:     [N]
-      t:     [N] temporal index for per-class temporal split
-    """
-    win = int(WINDOW_SIZE)
-    hop = max(1, int(STEP_SIZE))
 
-    X_list, y_list, t_list = [], [], []
-    t_counter = 0
-
-    for rec in tqdm(trials, desc="Building windows (graph ML)"):
-        eeg_ct = rec.get('eeg', None)  # [64, T]
-        if eeg_ct is None or eeg_ct.shape[0] != len(HEADSET_64):
-            continue
-
-        y = int(rec.get('label'))
-        if y not in (0, 1):
-            continue
-
-        eeg_t64 = eeg_ct.T.astype(np.float32)  # [T,64]
-
-        wins = segment_trial_to_windows(eeg_t64, win=win, hop=hop)
-        for w in wins:
-            X_list.append(w)
-            y_list.append(y)
-            t_list.append(t_counter)
-            t_counter += 1
-
-    if not X_list:
-        raise RuntimeError("No windows produced. Check WINDOW_SIZE vs trial length.")
-    X = np.stack(X_list, axis=0).astype(np.float32)
-    y = np.asarray(y_list, dtype=int)
-    t = np.asarray(t_list, dtype=int)
-    return X, y, t
-
-def temporal_split_per_class_train_val_test(t_all, y_all, train_frac=0.40, val_frac=0.30):
-    y_all = np.asarray(y_all).ravel()
-    t_all = np.asarray(t_all).ravel()
-    classes = sorted(set(int(v) for v in y_all.tolist()))
-    by_class = {}
-
-    for c in classes:
-        idx_c = np.where(y_all == c)[0]
-        order = np.argsort(t_all[idx_c], kind='stable')
-        idx_sorted = idx_c[order]
-        n_c = len(idx_sorted)
-
-        n_tr = int(np.ceil(train_frac * n_c)) if n_c > 0 else 0
-        n_va = int(np.ceil(val_frac   * n_c)) if n_c > 0 else 0
-
-        tr = idx_sorted[:n_tr]
-        va = idx_sorted[n_tr:n_tr+n_va]
-        te = idx_sorted[n_tr+n_va:]
-        by_class[c] = [list(tr), list(va), list(te)]
-
-    for c in classes:
-        if len(by_class[c][0]) == 0:
-            if len(by_class[c][1]) > 0:
-                by_class[c][0].append(by_class[c][1].pop(0))
-            elif len(by_class[c][2]) > 0:
-                by_class[c][0].append(by_class[c][2].pop(0))
-
-    for c in classes:
-        if len(by_class[c][1]) == 0 and len(by_class[c][2]) > 0:
-            by_class[c][1].append(by_class[c][2].pop(0))
-
-    train_idx = np.array([i for c in classes for i in by_class[c][0]], dtype=int)
-    val_idx   = np.array([i for c in classes for i in by_class[c][1]], dtype=int)
-    test_idx  = np.array([i for c in classes for i in by_class[c][2]], dtype=int)
-
-    train_idx = train_idx[np.argsort(t_all[train_idx])]
-    val_idx   = val_idx[np.argsort(t_all[val_idx])]
-    test_idx  = test_idx[np.argsort(t_all[test_idx])]
-    return train_idx, val_idx, test_idx
-
-# ─────────────────────────────────────────────────────────────────────────
-# PLV (vectorized) + transform + feature extraction
-# ─────────────────────────────────────────────────────────────────────────
 def compute_plv_matrix(window_t58: np.ndarray):
-    """
-    window_t58: [T,58]
-    Fast PLV:
-      u = exp(1j*phase) => plv = abs((u^H u)/T)
-    """
+    """window_t58: [T, 58]"""
     analytic = hilbert(window_t58, axis=0)
     phase = np.angle(analytic)
-    u = np.exp(1j * phase)  # [T,C]
+    u = np.exp(1j * phase)
     T = u.shape[0]
-    plv = np.abs((u.conj().T @ u) / max(1, T)).astype(np.float32)  # [C,C]
+    plv = np.abs((u.conj().T @ u) / max(1, T)).astype(np.float32)
     np.fill_diagonal(plv, 1.0)
     return plv
 
+
 def plv_transform(plv_raw: np.ndarray, eps: float):
+    """Transform PLV -> X = -log(1-plv+eps), diagonal forced to 0."""
     plv = plv_raw.astype(np.float32).copy()
     np.fill_diagonal(plv, 0.0)
     X = -np.log(1.0 - plv + eps).astype(np.float32)
     np.fill_diagonal(X, 0.0)
     return X
 
-def plv_features_from_window(window_t64: np.ndarray, eps: float):
+
+def plv_features_from_window_58(window_t58: np.ndarray, eps: float):
     """
-    window_t64: [T,64]
-    -> preprocess to [T,58]
+    window_t58: [T,58]
     -> PLV
     -> transformed matrix X
     -> edge feats (upper tri) + node feats (strength)
     """
-    w58 = preprocess_window(window_t64)
-    if w58 is None:
+    if window_t58 is None or window_t58.ndim != 2 or window_t58.shape[1] != 58:
         return None, None
 
-    plv = compute_plv_matrix(w58)            # [58,58]
-    X = plv_transform(plv, eps=eps)          # [58,58]
+    plv = compute_plv_matrix(window_t58)      # [58,58]
+    X = plv_transform(plv, eps=eps)           # [58,58]
 
     triu = np.triu_indices(X.shape[0], k=1)
-    edges = X[triu].astype(np.float32)       # [E]
+    edges = X[triu].astype(np.float32)                    # [E]
     nodes = np.sum(np.abs(X), axis=1).astype(np.float32)  # [58]
     return edges, nodes
 
+
 # ─────────────────────────────────────────────────────────────────────────
-# Stability / discriminability metrics
+# Stability metrics (CV + symmetric KL), computed TRAIN-only
 # ─────────────────────────────────────────────────────────────────────────
+
 def compute_cv(vec, eps=CV_EPS):
     mu = float(np.mean(vec))
     sd = float(np.std(vec))
-    denom = abs(mu) + eps
+    denom = abs(mu) + float(eps)
     if denom < 1e-20:
         return 0.0
     return float(sd / denom)
+
 
 def sym_kl_hist(a, b, nbins=KL_NBINS, eps=KL_EPS):
     a = np.asarray(a).ravel()
@@ -201,121 +125,282 @@ def sym_kl_hist(a, b, nbins=KL_NBINS, eps=KL_EPS):
     if not np.isfinite(lo) or not np.isfinite(hi) or hi <= lo:
         return 0.0
 
-    bins = np.linspace(lo, hi, nbins + 1)
-    pa, _ = np.histogram(a, bins=bins, density=False)
-    pb, _ = np.histogram(b, bins=bins, density=False)
+    ha, _ = np.histogram(a, bins=int(nbins), range=(lo, hi), density=False)
+    hb, _ = np.histogram(b, bins=int(nbins), range=(lo, hi), density=False)
 
-    pa = pa.astype(np.float64) + eps
-    pb = pb.astype(np.float64) + eps
-    pa /= pa.sum()
-    pb /= pb.sum()
+    ha = ha.astype(np.float64) + float(eps)
+    hb = hb.astype(np.float64) + float(eps)
+
+    pa = ha / np.sum(ha)
+    pb = hb / np.sum(hb)
 
     kl_ab = np.sum(pa * np.log(pa / pb))
     kl_ba = np.sum(pb * np.log(pb / pa))
     return float(0.5 * (kl_ab + kl_ba))
 
-def compute_cv_kl_landscape(F_edges, F_nodes, y):
-    y = np.asarray(y).astype(int)
-    idx0 = np.where(y == 0)[0]
-    idx1 = np.where(y == 1)[0]
-    if len(idx0) == 0 or len(idx1) == 0:
-        raise RuntimeError("Need both classes to compute CV/KL landscape.")
 
-    def family_stats(F):
-        nfeat = F.shape[1]
-        cvs = np.zeros(nfeat, dtype=np.float32)
-        kls = np.zeros(nfeat, dtype=np.float32)
-        for u in range(nfeat):
-            v0 = F[idx0, u]
-            v1 = F[idx1, u]
-            cvs[u] = 0.5 * (compute_cv(v0) + compute_cv(v1))
-            kls[u] = sym_kl_hist(v0, v1)
-        return cvs, kls
+def compute_cv_kl_landscape(Fe_tr: np.ndarray, Fn_tr: np.ndarray, ytr: np.ndarray):
+    """
+    Fe_tr: [N,E] edge features on TRAIN windows only
+    Fn_tr: [N,58] node features on TRAIN windows only
+    ytr:   [N,]
+    Returns:
+        cv_edges[E], kl_edges[E], cv_nodes[58], kl_nodes[58]
+    """
+    ytr = np.asarray(ytr).astype(int)
+    idx0 = np.where(ytr == 0)[0]
+    idx1 = np.where(ytr == 1)[0]
+    if idx0.size == 0 or idx1.size == 0:
+        raise RuntimeError("TRAIN split missing a class; cannot compute KL.")
 
-    cv_e, kl_e = family_stats(F_edges)
-    cv_n, kl_n = family_stats(F_nodes)
+    # Edges
+    E = Fe_tr.shape[1]
+    cv_e = np.zeros((E,), dtype=np.float32)
+    kl_e = np.zeros((E,), dtype=np.float32)
+    for j in range(E):
+        v = Fe_tr[:, j]
+        cv_e[j] = compute_cv(v)
+        kl_e[j] = sym_kl_hist(v[idx0], v[idx1])
+
+    # Nodes
+    C = Fn_tr.shape[1]
+    cv_n = np.zeros((C,), dtype=np.float32)
+    kl_n = np.zeros((C,), dtype=np.float32)
+    for j in range(C):
+        v = Fn_tr[:, j]
+        cv_n[j] = compute_cv(v)
+        kl_n[j] = sym_kl_hist(v[idx0], v[idx1])
+
     return cv_e, kl_e, cv_n, kl_n
 
-def select_features_by_cv_kl(cv, kl, cv_keep_pctl=30, kl_keep_pctl=70):
-    cv_thr = float(np.percentile(cv, cv_keep_pctl))
-    kl_thr = float(np.percentile(kl, kl_keep_pctl))
-    sel = np.where((cv <= cv_thr) & (kl >= kl_thr))[0]
-    return sel.astype(int), cv_thr, kl_thr
 
-def apply_feature_mask(F_edges, F_nodes, sel_e, sel_n):
-    Fe = F_edges[:, sel_e] if sel_e.size > 0 else np.zeros((F_edges.shape[0], 0), dtype=np.float32)
-    Fn = F_nodes[:, sel_n] if sel_n.size > 0 else np.zeros((F_nodes.shape[0], 0), dtype=np.float32)
-    return np.concatenate([Fe, Fn], axis=1).astype(np.float32)
+def select_features_by_cv_kl(cv: np.ndarray, kl: np.ndarray, cv_keep_pctl: int, kl_keep_pctl: int):
+    """
+    Select features with:
+      - cv <= percentile(cv, cv_keep_pctl)  (low variation)
+      - kl >= percentile(kl, 100-kl_keep_pctl) (high separability)
+    """
+    cv = np.asarray(cv).astype(np.float32)
+    kl = np.asarray(kl).astype(np.float32)
+
+    cv_thr = float(np.percentile(cv, float(cv_keep_pctl)))
+    kl_thr = float(np.percentile(kl, 100.0 - float(kl_keep_pctl)))
+
+    keep = np.where((cv <= cv_thr) & (kl >= kl_thr))[0].astype(int)
+    return keep, cv_thr, kl_thr
+
+
+def apply_feature_mask(Fe: np.ndarray, Fn: np.ndarray, sel_e: np.ndarray, sel_n: np.ndarray):
+    Fe2 = Fe[:, sel_e] if sel_e.size > 0 else np.zeros((Fe.shape[0], 0), dtype=np.float32)
+    Fn2 = Fn[:, sel_n] if sel_n.size > 0 else np.zeros((Fn.shape[0], 0), dtype=np.float32)
+    return np.concatenate([Fe2, Fn2], axis=1).astype(np.float32)
+
 
 # ─────────────────────────────────────────────────────────────────────────
-# Classical model zoo
+# Trial-level split (prevents leakage even with overlapping windows)
 # ─────────────────────────────────────────────────────────────────────────
-def classical_model_zoo():
-    zoo = {}
-    zoo["logreg"] = (LogisticRegression(max_iter=2000, solver="liblinear"),
-                    {"clf__C": [0.01, 0.1, 1.0, 10.0], "clf__penalty": ["l1", "l2"]})
-    zoo["svm_linear"] = (SVC(kernel="linear"),
-                        {"clf__C": [0.01, 0.1, 1.0, 10.0]})
-    zoo["svm_rbf"] = (SVC(kernel="rbf"),
-                     {"clf__C": [0.1, 1.0, 10.0], "clf__gamma": ["scale", 0.01, 0.1, 1.0]})
-    zoo["knn"] = (KNeighborsClassifier(),
-                 {"clf__n_neighbors": [3, 5, 9, 15], "clf__weights": ["uniform", "distance"]})
-    zoo["rf"] = (RandomForestClassifier(),
-                {"clf__n_estimators": [200, 500], "clf__max_depth": [None, 5, 10]})
-    zoo["gboost"] = (GradientBoostingClassifier(),
-                    {"clf__n_estimators": [100, 300], "clf__learning_rate": [0.05, 0.1], "clf__max_depth": [2, 3]})
-    return zoo
+
+def _stratified_trial_split(trials, train_frac=0.40, val_frac=0.30, seed=0):
+    """Split *trials* by trial (not by windows) to avoid leakage."""
+    rng = np.random.default_rng(int(seed))
+
+    idx0 = [i for i, r in enumerate(trials) if int(r.get("label", -1)) == 0]
+    idx1 = [i for i, r in enumerate(trials) if int(r.get("label", -1)) == 1]
+
+    rng.shuffle(idx0)
+    rng.shuffle(idx1)
+
+    def _split_one(idxs):
+        n = len(idxs)
+        n_tr = int(np.ceil(train_frac * n))
+        n_va = int(np.ceil(val_frac * n))
+        tr = idxs[:n_tr]
+        va = idxs[n_tr:n_tr + n_va]
+        te = idxs[n_tr + n_va:]
+        return tr, va, te
+
+    tr0, va0, te0 = _split_one(idx0)
+    tr1, va1, te1 = _split_one(idx1)
+
+    tr = tr0 + tr1
+    va = va0 + va1
+    te = te0 + te1
+
+    rng.shuffle(tr)
+    rng.shuffle(va)
+    rng.shuffle(te)
+
+    return tr, va, te
+
+
+def load_trials_one_session(session_pkl_path):
+    if not os.path.isfile(session_pkl_path):
+        raise FileNotFoundError(f"Missing session file: {session_pkl_path}")
+    with open(session_pkl_path, "rb") as f:
+        d = pickle.load(f)
+
+    trials = []
+    for _, rec in d.items():
+        eeg = rec.get("eeg", None)
+        if eeg is None or getattr(eeg, "size", 0) == 0:
+            continue
+        trials.append(rec)
+
+    if not trials:
+        raise RuntimeError("No usable trials in session file.")
+    return trials
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Model selection
+# ─────────────────────────────────────────────────────────────────────────
+
+def build_search_space():
+    models = []
+
+    # Logistic Regression
+    lr = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", LogisticRegression(max_iter=2000, class_weight="balanced"))
+    ])
+    lr_grid = {
+        "clf__C": [0.01, 0.1, 1.0, 10.0],
+        "clf__penalty": ["l2"],
+        "clf__solver": ["lbfgs"],
+    }
+    models.append(("LogReg", lr, lr_grid))
+
+    # SVM
+    svm = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", SVC(class_weight="balanced"))
+    ])
+    svm_grid = {
+        "clf__C": [0.1, 1.0, 10.0],
+        "clf__kernel": ["linear", "rbf"],
+        "clf__gamma": ["scale"],
+    }
+    models.append(("SVC", svm, svm_grid))
+
+    # KNN
+    knn = Pipeline([
+        ("scaler", StandardScaler()),
+        ("clf", KNeighborsClassifier())
+    ])
+    knn_grid = {
+        "clf__n_neighbors": [3, 5, 9, 15],
+        "clf__weights": ["uniform", "distance"],
+    }
+    models.append(("KNN", knn, knn_grid))
+
+
+    return models
+
 
 def fit_grid_on_train_select_by_val(Xtr, ytr, Xva, yva, Xte, yte):
-    best = {"name": None, "val_acc": -1.0, "test_acc": None, "best_params": None, "estimator": None}
+    models = build_search_space()
     all_results = []
+    best = None
 
-    for name, (base_clf, grid) in classical_model_zoo().items():
-        pipe = Pipeline([("scaler", StandardScaler()), ("clf", base_clf)])
-        gs = GridSearchCV(pipe, grid, scoring="accuracy", cv=5, n_jobs=-1)
+    for name, est, grid in models:
+        gs = GridSearchCV(
+            est,
+            param_grid=grid,
+            scoring="accuracy",
+            cv=3,
+            n_jobs=-1,
+            refit=True,
+        )
         gs.fit(Xtr, ytr)
 
-        yhat_va = gs.best_estimator_.predict(Xva)
-        va_acc = accuracy_score(yva, yhat_va)
-        va_cm  = confusion_matrix(yva, yhat_va, labels=[0,1]).astype(int)
+        va_pred = gs.best_estimator_.predict(Xva)
+        te_pred = gs.best_estimator_.predict(Xte)
 
-        yhat_te = gs.best_estimator_.predict(Xte)
-        te_acc = accuracy_score(yte, yhat_te)
-        te_cm  = confusion_matrix(yte, yhat_te, labels=[0,1]).astype(int)
+        va_acc = float(accuracy_score(yva, va_pred))
+        te_acc = float(accuracy_score(yte, te_pred))
 
         all_results.append({
-            "model": name,
-            "val_acc": float(va_acc),
-            "val_cm": va_cm.tolist(),
-            "test_acc": float(te_acc),
-            "test_cm": te_cm.tolist(),
+            "name": name,
             "best_params": gs.best_params_,
+            "val_acc": va_acc,
+            "test_acc": te_acc,
+            "estimator": gs.best_estimator_,
         })
 
-        if va_acc > best["val_acc"]:
-            best.update({
-                "name": name,
-                "val_acc": float(va_acc),
-                "test_acc": float(te_acc),
-                "best_params": gs.best_params_,
-                "estimator": gs.best_estimator_
-            })
+        if best is None or va_acc > best["val_acc"]:
+            best = all_results[-1]
+
+        print(f"[GRAPH TRAIN] {name} best={gs.best_params_} val={va_acc:.3f} test={te_acc:.3f}", flush=True)
 
     return best, all_results
 
-def train_and_save():
+
+# ─────────────────────────────────────────────────────────────────────────
+# Main training routine
+# ─────────────────────────────────────────────────────────────────────────
+
+def train_graph_ml():
+    print(f"[GRAPH TRAIN] Loading trials: {TRAIN_SESSION_PKL}", flush=True)
     trials = load_trials_one_session(TRAIN_SESSION_PKL)
-    Xwin, y, t = build_windows_from_trials(trials)
-    print(f"[GRAPH TRAIN] windows={len(Xwin)} class_counts={dict(Counter(y))}")
 
-    tr_idx, va_idx, te_idx = temporal_split_per_class_train_val_test(t, y, train_frac=0.40, val_frac=0.30)
+    # trial-level split
+    tr_trials_idx, va_trials_idx, te_trials_idx = _stratified_trial_split(trials, seed=0)
+    print(f"[GRAPH TRAIN] trials split: train={len(tr_trials_idx)} val={len(va_trials_idx)} test={len(te_trials_idx)}", flush=True)
 
-    # ── Extract PLV features per window
-    edges_list, nodes_list = [], []
-    for w in tqdm(Xwin, desc="Computing PLV features per window"):
-        e, n = plv_features_from_window(w, eps=EPSILON)
+    win = int(WINDOW_SIZE)
+    hop = max(1, int(STEP_SIZE))  # match online inference cadence
+
+    # Build window list + labels + trial_ids (trial id = index in trials list)
+    windows_58 = []
+    y = []
+    trial_ids = []
+
+    for t_idx, rec in enumerate(tqdm(trials, desc="Preprocess trials + segment windows")):
+        eeg_ct = rec.get("eeg", None)  # [64, T]
+        if eeg_ct is None or eeg_ct.shape[0] != len(HEADSET_64):
+            continue
+
+        lab = int(rec.get("label", -1))
+        if lab not in (0, 1):
+            continue
+
+        eeg_t64 = eeg_ct.T.astype(np.float32)  # [T,64]
+
+        # Causal, deterministic training preprocess across full trial (no cross-window leakage)
+        eeg_t58 = preprocess_trial_58(eeg_t64)
+        if eeg_t58 is None:
+            continue
+
+        wins = segment_trial_to_windows(eeg_t58, win=win, hop=hop)  # [N, win, 58]
+        for w in wins:
+            windows_58.append(w)
+            y.append(lab)
+            trial_ids.append(t_idx)
+
+    if not windows_58:
+        raise RuntimeError("No windows built. Check WINDOW_SIZE/STEP_SIZE and your input trials.")
+
+    windows_58 = np.asarray(windows_58, dtype=np.float32)  # [N, win, 58]
+    y = np.asarray(y, dtype=int)
+    trial_ids = np.asarray(trial_ids, dtype=int)
+
+    print(f"[GRAPH TRAIN] windows={len(y)} label_counts={Counter(y)} hop={hop} win={win}", flush=True)
+
+    # Convert trial split into window indices
+    tr_idx = np.where(np.isin(trial_ids, np.array(tr_trials_idx, dtype=int)))[0]
+    va_idx = np.where(np.isin(trial_ids, np.array(va_trials_idx, dtype=int)))[0]
+    te_idx = np.where(np.isin(trial_ids, np.array(te_trials_idx, dtype=int)))[0]
+
+    if tr_idx.size == 0 or va_idx.size == 0 or te_idx.size == 0:
+        raise RuntimeError("Empty split after windowing. You likely have too few trials/windows.")
+
+    # Build PLV features for every window (from already-preprocessed 58ch windows)
+    edges_list = []
+    nodes_list = []
+    for w in tqdm(windows_58, desc="Extract PLV features per window"):
+        e, n = plv_features_from_window_58(w, eps=float(EPSILON))
         if e is None:
-            raise RuntimeError("preprocess_window returned None unexpectedly.")
+            raise RuntimeError("Feature extraction returned None unexpectedly.")
         edges_list.append(e)
         nodes_list.append(n)
 
@@ -327,28 +412,32 @@ def train_and_save():
     Fe_tr, Fe_va, Fe_te = F_edges[tr_idx], F_edges[va_idx], F_edges[te_idx]
     Fn_tr, Fn_va, Fn_te = F_nodes[tr_idx], F_nodes[va_idx], F_nodes[te_idx]
 
-    # ── TRAIN-only CV/KL
+    # TRAIN-only CV/KL selection
     cv_e, kl_e, cv_n, kl_n = compute_cv_kl_landscape(Fe_tr, Fn_tr, ytr)
 
-    sel_e, cv_thr_e, kl_thr_e = select_features_by_cv_kl(cv_e, kl_e, CV_KEEP_PCTL, KL_KEEP_PCTL)
-    sel_n, cv_thr_n, kl_thr_n = select_features_by_cv_kl(cv_n, kl_n, CV_KEEP_PCTL, KL_KEEP_PCTL)
+    sel_e, cv_thr_e, kl_thr_e = select_features_by_cv_kl(cv_e, kl_e, int(CV_KEEP_PCTL), int(KL_KEEP_PCTL))
+    sel_n, cv_thr_n, kl_thr_n = select_features_by_cv_kl(cv_n, kl_n, int(CV_KEEP_PCTL), int(KL_KEEP_PCTL))
 
-    print(f"[GRAPH TRAIN] Edge feats: total={F_edges.shape[1]}, selected={sel_e.size}")
-    print(f"[GRAPH TRAIN] Node feats: total={F_nodes.shape[1]}, selected={sel_n.size}")
+    print(f"[GRAPH TRAIN] Edge feats: total={F_edges.shape[1]}, selected={sel_e.size}", flush=True)
+    print(f"[GRAPH TRAIN] Node feats: total={F_nodes.shape[1]}, selected={sel_n.size}", flush=True)
     if sel_e.size + sel_n.size == 0:
-        raise RuntimeError("Selected 0 features. Loosen CV_KEEP_PCTL / KL_KEEP_PCTL.")
+        raise RuntimeError("Feature selection picked 0 features. Relax CV_KEEP_PCTL/KL_KEEP_PCTL.")
 
-    # Apply selection
     Xtr = apply_feature_mask(Fe_tr, Fn_tr, sel_e, sel_n)
     Xva = apply_feature_mask(Fe_va, Fn_va, sel_e, sel_n)
     Xte = apply_feature_mask(Fe_te, Fn_te, sel_e, sel_n)
 
     best, all_results = fit_grid_on_train_select_by_val(Xtr, ytr, Xva, yva, Xte, yte)
-    print(f"[GRAPH TRAIN] BEST={best['name']} val={best['val_acc']:.3f} test={best['test_acc']:.3f}")
+    print(f"[GRAPH TRAIN] BEST={best['name']} val={best['val_acc']:.3f} test={best['test_acc']:.3f}", flush=True)
 
-    # Save selection stats (npz) and model pack (pkl)
+    # Report confusion on test for best
+    te_pred = best["estimator"].predict(Xte)
+    cm = confusion_matrix(yte, te_pred)
+    print("[GRAPH TRAIN] Test confusion matrix:\n", cm, flush=True)
+
     os.makedirs(MODEL_OUT_DIR, exist_ok=True)
 
+    # Save selection stats
     fs_path = os.path.join(MODEL_OUT_DIR, "selected_features_CVKL.npz")
     np.savez(
         fs_path,
@@ -359,45 +448,49 @@ def train_and_save():
         cv_thr_edges=cv_thr_e, kl_thr_edges=kl_thr_e,
         cv_thr_nodes=cv_thr_n, kl_thr_nodes=kl_thr_n,
         cv_keep_pctl=int(CV_KEEP_PCTL), kl_keep_pctl=int(KL_KEEP_PCTL),
-        tr_idx=tr_idx, va_idx=va_idx, te_idx=te_idx
+        train_trial_idx=np.array(tr_trials_idx, dtype=int),
+        val_trial_idx=np.array(va_trials_idx, dtype=int),
+        test_trial_idx=np.array(te_trials_idx, dtype=int),
     )
 
+    # Save model pack
     pack = {
-        "clf": best["estimator"],  # sklearn Pipeline(scaler+clf)
+        "clf": best["estimator"],
         "sel_edge_idx": sel_e,
         "sel_node_idx": sel_n,
         "meta": {
             "subject_id": SUBJECT_ID,
             "train_session_id": TRAIN_SESSION_ID,
             "current_session_id": CURRENT_SESSION_ID,
-            "train_session_pkl": TRAIN_SESSION_PKL,
-            "sampling_rate": int(SAMPLING_RATE),
-            "window_size_samples": int(WINDOW_SIZE),
-            "step_size_samples": int(STEP_SIZE),
-            "eps": float(EPSILON),
+            "sampling_rate": float(SAMPLING_RATE),
+            "window_size": int(WINDOW_SIZE),
+            "step_size": int(STEP_SIZE),
+            "apply_bandpass": bool(APPLY_BANDPASS),
+            "epsilon": float(EPSILON),
             "cv_keep_pctl": int(CV_KEEP_PCTL),
             "kl_keep_pctl": int(KL_KEEP_PCTL),
-            "cv_thr_edges": float(cv_thr_e),
-            "kl_thr_edges": float(kl_thr_e),
-            "cv_thr_nodes": float(cv_thr_n),
-            "kl_thr_nodes": float(kl_thr_n),
             "best_model": best["name"],
             "best_params": best["best_params"],
-            "selection_npz": fs_path,
-            "n_selected": int(sel_e.size + sel_n.size),
-        },
-        "all_results": all_results,
+            "val_acc": float(best["val_acc"]),
+            "test_acc": float(best["test_acc"]),
+        }
     }
 
-    model_path = os.path.join(MODEL_OUT_DIR, "graph_ml_best.pkl")
+    model_path = os.path.join(MODEL_OUT_DIR, "graph_ml_model_pack.pkl")
     with open(model_path, "wb") as f:
         pickle.dump(pack, f)
 
-    report_path = os.path.join(MODEL_OUT_DIR, "graph_ml_training_report.json")
-    with open(report_path, "w") as f:
-        json.dump({"best": pack["meta"], "all_results": all_results}, f, indent=2)
+    # Also dump a readable json summary
+    summary_path = os.path.join(MODEL_OUT_DIR, "graph_training_summary.json")
+    with open(summary_path, "w") as f:
+        json.dump(pack["meta"], f, indent=2)
 
     return model_path, pack
+
+
+def train_and_save():
+    return train_graph_ml()
+
 
 if __name__ == "__main__":
     train_and_save()

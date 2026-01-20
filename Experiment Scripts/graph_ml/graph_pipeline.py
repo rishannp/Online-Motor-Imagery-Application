@@ -9,7 +9,8 @@ from config import (
     EPSILON,
     SMOOTH_VOTES,
 )
-from preprocess import preprocess_window
+from preprocess import preprocess_window_58
+
 
 def compute_plv_matrix(window_t58: np.ndarray):
     analytic = hilbert(window_t58, axis=0)
@@ -20,6 +21,7 @@ def compute_plv_matrix(window_t58: np.ndarray):
     np.fill_diagonal(plv, 1.0)
     return plv
 
+
 def plv_transform(plv_raw: np.ndarray, eps: float):
     plv = plv_raw.astype(np.float32).copy()
     np.fill_diagonal(plv, 0.0)
@@ -27,8 +29,9 @@ def plv_transform(plv_raw: np.ndarray, eps: float):
     np.fill_diagonal(X, 0.0)
     return X
 
+
 def features_selected(window_t64: np.ndarray, sel_e: np.ndarray, sel_n: np.ndarray, eps: float):
-    w58 = preprocess_window(window_t64)
+    w58 = preprocess_window_58(window_t64)
     if w58 is None:
         return None
 
@@ -36,7 +39,7 @@ def features_selected(window_t64: np.ndarray, sel_e: np.ndarray, sel_n: np.ndarr
     X = plv_transform(plv, eps=eps)
 
     triu = np.triu_indices(X.shape[0], k=1)
-    edges = X[triu].astype(np.float32)                 # [E]
+    edges = X[triu].astype(np.float32)                    # [E]
     nodes = np.sum(np.abs(X), axis=1).astype(np.float32)  # [58]
 
     Fe = edges[sel_e] if sel_e.size > 0 else np.zeros((0,), dtype=np.float32)
@@ -44,6 +47,7 @@ def features_selected(window_t64: np.ndarray, sel_e: np.ndarray, sel_n: np.ndarr
 
     f = np.concatenate([Fe, Fn], axis=0).astype(np.float32)
     return f[None, :]  # [1, d]
+
 
 class GraphMLPipeline:
     def __init__(self, pack: dict):
@@ -56,9 +60,14 @@ class GraphMLPipeline:
 
         self.vote_hist = deque(maxlen=max(1, int(SMOOTH_VOTES)))
 
-    def process(self, window_t64: np.ndarray):
-        # baseline gating (keeps game behavior 1:1)
-        self.seen_samples += int(STEP_SIZE)
+    def process(self, window_t64: np.ndarray, n_new: int = None):
+        """Run inference on the most recent WINDOW_SIZE samples.
+
+        window_t64: [T, 64]
+        n_new:      how many *new* samples have advanced since the previous inference.
+                    If None, defaults to STEP_SIZE.
+        """
+        self.seen_samples += int(STEP_SIZE if n_new is None else n_new)
         if self.seen_samples < self.baseline_samples:
             return None
 

@@ -5,9 +5,9 @@ import os
 CSP_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\csp"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "004"
+SUBJECT_ID = "000"
 # where we read pkl to train)
-TRAIN_SESSION_ID = "001"
+TRAIN_SESSION_ID = "006"
 # session we’re running right now)
 CURRENT_SESSION_ID = "002"
 
@@ -54,7 +54,7 @@ TRIAL_DURATION = 10.0
 
 SAMPLING_RATE     = 256
 FEEDBACK_INTERVAL = 0.04
-WINDOW_SIZE       = SAMPLING_RATE * 2
+WINDOW_SIZE       = SAMPLING_RATE * 1
 STEP_SIZE         = int(FEEDBACK_INTERVAL * SAMPLING_RATE)
 
 # ─── CSP SETTINGS ────────────────────────────────────────────────────────

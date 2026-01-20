@@ -1,5 +1,6 @@
-# main.py  (GRAPH+ML APP ENTRYPOINT)
+# main.py  (GRAPH+ML APP)
 import json
+import time
 from queue import Queue
 from threading import Thread
 from collections import deque
@@ -8,13 +9,15 @@ import numpy as np
 
 from config import (
     CURRENT_SESSION_DIR, MODEL_OUT_DIR, TRAIN_SESSION_PKL,
-    WINDOW_SIZE, STEP_SIZE, SAMPLING_RATE,
+    WINDOW_SIZE, STEP_SIZE,
 )
 
-from lsl_stream import get_inlet
+from lsl_stream import stream_chunk
 from graph_training import train_and_save
 from graph_pipeline import GraphMLPipeline
 from game import run_game
+from preprocess import reset_preprocess_state
+
 
 def main():
     # Snapshot config for this run
@@ -25,50 +28,85 @@ def main():
             indent=2,
         )
 
-    print(f"[GRAPH APP] training source pkl: {TRAIN_SESSION_PKL}")
+    print(f"[GRAPH APP] training source pkl: {TRAIN_SESSION_PKL}", flush=True)
     model_path, pack = train_and_save()
-    print(f"[GRAPH APP] saved model pack: {model_path}")
-    print(f"[GRAPH APP] model outputs dir: {MODEL_OUT_DIR}")
-    print(f"[GRAPH APP] current session dir: {CURRENT_SESSION_DIR}")
+    print(f"[GRAPH APP] saved model pack: {model_path}", flush=True)
+    print(f"[GRAPH APP] model outputs dir: {MODEL_OUT_DIR}", flush=True)
+    print(f"[GRAPH APP] current session dir: {CURRENT_SESSION_DIR}", flush=True)
 
     pipeline = GraphMLPipeline(pack)
 
-    action_q    = Queue()
-    adapt_q     = Queue()
-    label_q     = Queue()
-    raw_eeg_q   = deque(maxlen=1)
+    # Start the causal filter clean (state then persists across online windows).
+    reset_preprocess_state()
+
+    action_q = Queue()
+    adapt_q = Queue()
+    label_q = Queue()
+    raw_eeg_q = deque(maxlen=1)
     eeg_chunk_q = Queue()
 
-    inlet = get_inlet()
-
     def bci_loop():
-        buf = deque(maxlen=WINDOW_SIZE)
-        count = 0
+        print("[GRAPH] BCI loop started (chunked sliding inference)", flush=True)
+
+        win = int(WINDOW_SIZE)
+        step = int(STEP_SIZE)
+
+        # Ring buffer of last WINDOW_SIZE samples
+        buf = deque(maxlen=win)
+
+        # We do inference every STEP_SIZE new samples, on the most recent WINDOW_SIZE.
+        samples_since_last_infer = 0
+
+        # Optional but recommended: only push command when it changes
+        last_cmd = None
+
+        last_dbg = time.time()
 
         while True:
-            sample, _ = inlet.pull_sample(timeout=1.0 / SAMPLING_RATE)
-            if not sample:
+            chunk = stream_chunk(max_wait_sec=10.0)  # [n, 64] or None
+            if chunk is None:
                 continue
 
-            eeg_chunk_q.put(np.asarray(sample, dtype=float)[np.newaxis, :])
-            buf.append(sample)
-            count += 1
+            # For session logging: game does np.vstack(trial_eeg_chunks), so chunk arrays are fine.
+            eeg_chunk_q.put(chunk)
 
-            if len(buf) == WINDOW_SIZE and (count % STEP_SIZE == 0):
-                window = np.asarray(buf, dtype=np.float32)  # [WINDOW_SIZE, 64]
-                raw_eeg_q.clear()
-                raw_eeg_q.append(window)
+            for row in chunk:
+                buf.append(row)
 
-                cmd = pipeline.process(window)
+            samples_since_last_infer += int(chunk.shape[0])
 
-                # ~1 Hz log
-                if count % SAMPLING_RATE == 0:
-                    print(f"[GRAPH] cmd={cmd}")
+            if len(buf) < win:
+                continue
 
+            if samples_since_last_infer < step:
+                continue
+
+            # Consume exactly one 'step' worth of advancement per inference.
+            # (If we got a bigger chunk, we keep the remainder.)
+            samples_since_last_infer %= step
+
+            window = np.asarray(buf, dtype=np.float32)  # [win, 64]
+
+            raw_eeg_q.clear()
+            raw_eeg_q.append(window)
+
+            cmd = pipeline.process(window, n_new=step)
+
+            if cmd != last_cmd:
                 action_q.put(cmd)
+                last_cmd = cmd
+
+            now = time.time()
+            if now - last_dbg > 1.0:
+                print(
+                    f"[GRAPH] cmd={cmd} chunk={tuple(chunk.shape)} window={tuple(window.shape)}",
+                    flush=True,
+                )
+                last_dbg = now
 
     Thread(target=bci_loop, daemon=True).start()
     run_game(action_q, adapt_q, [], label_q, raw_eeg_q, eeg_chunk_q)
+
 
 if __name__ == "__main__":
     main()

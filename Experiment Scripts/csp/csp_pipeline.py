@@ -38,20 +38,20 @@ class CSPPipeline:
         self.vote_hist = deque(maxlen=max(1, int(CSP_SMOOTH_VOTES)))
 
     def process(self, window_t64: np.ndarray):
-        # baseline gating (match game behavior exactly)
-        self.seen_samples += int(STEP_SIZE)
+        # baseline gating (match how main actually feeds full windows)
+        self.seen_samples += int(window_t64.shape[0])
         if self.seen_samples < self.baseline_samples:
             return None
-
+    
         w_tc = preprocess_window(window_t64)  # [T, Ccsp]
         if w_tc is None:
             return None
-
+    
         feats = _logvar_feats(w_tc, self.W, self.picks)  # [1, k]
         pred = int(self.clf.predict(feats)[0])           # 0/1
-
+    
         self.vote_hist.append(pred)
         if len(self.vote_hist) == 1:
             return pred
-
+    
         return 1 if sum(self.vote_hist) > (len(self.vote_hist) / 2.0) else 0
