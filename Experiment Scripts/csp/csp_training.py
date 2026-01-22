@@ -173,32 +173,20 @@ def csp_transform(X, W, picks):
 
 
 def classical_model_zoo():
+    """
+    Fixed classifier for online CSP control: linear SVM only.
+    We rely on decision_function margins online (signed strengths).
+    """
     zoo = {}
-    zoo["logreg"] = (
-        LogisticRegression(max_iter=2000, solver="liblinear"),
-        {"clf__C": [0.01, 0.1, 1.0, 10.0], "clf__penalty": ["l1", "l2"]},
-    )
+
+    # probability=False keeps it fast; decision_function() is still available.
     zoo["svm_linear"] = (
-        SVC(kernel="linear"),
-        {"clf__C": [0.01, 0.1, 1.0, 10.0]},
+        SVC(kernel="linear", probability=False),
+        {"clf__C": [0.1, 1.0, 10.0]},
     )
-    zoo["svm_rbf"] = (
-        SVC(kernel="rbf"),
-        {"clf__C": [0.1, 1.0, 10.0], "clf__gamma": ["scale", 0.01, 0.1, 1.0]},
-    )
-    zoo["knn"] = (
-        KNeighborsClassifier(),
-        {"clf__n_neighbors": [3, 5, 9, 15], "clf__weights": ["uniform", "distance"]},
-    )
-    zoo["rf"] = (
-        RandomForestClassifier(),
-        {"clf__n_estimators": [200, 500], "clf__max_depth": [None, 5, 10]},
-    )
-    zoo["gboost"] = (
-        GradientBoostingClassifier(),
-        {"clf__n_estimators": [100, 300], "clf__learning_rate": [0.05, 0.1], "clf__max_depth": [2, 3]},
-    )
+
     return zoo
+
 
 
 def fit_grid_on_train_select_by_val(Xtr, ytr, Xva, yva, Xte, yte):

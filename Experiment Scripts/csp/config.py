@@ -5,11 +5,11 @@ import os
 CSP_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\csp"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "000"
+SUBJECT_ID = "005"
 # where we read pkl to train)
-TRAIN_SESSION_ID = "006"
+TRAIN_SESSION_ID = "001"
 # session we’re running right now)
-CURRENT_SESSION_ID = "002"
+CURRENT_SESSION_ID = "000"
 
 # ─── WHERE TRAINING PKL LIVES (NEUROFEEDBACK FOLDER) ─────────────────────
 NEUROFEEDBACK_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback"
@@ -44,7 +44,7 @@ MODEL_OUT_DIR = os.path.join(
 os.makedirs(MODEL_OUT_DIR, exist_ok=True)
 
 # ─── GAME PARAMETERS ───────────────────────────────
-NUM_LEVELS        = 10
+NUM_LEVELS        = 1
 TRIALS_PER_LEVEL  = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
@@ -77,6 +77,19 @@ CSP_CHANNELS = [
 ]
 
 CSP_SMOOTH_VOTES = 5
+
+# ─── ONLINE BASELINE + MARGIN CONTROL ─────────────────────────────
+# During the first CSP_BASELINE_SECONDS, we estimate a baseline SVM margin
+# (rest state). After baseline, we subtract that mean so outputs are
+# centered per-session (non-stationarity guard).
+CSP_BASELINE_CENTER = True
+
+# DISCRETE MODE: output 0/1 commands (fixed speed in game).
+# Negative margin => LEFT (0), positive margin => RIGHT (1).
+CSP_ANALOG_OUTPUT = False
+
+# Kept for compatibility; not used in discrete mode.
+CSP_CMD_EPS = 0.05
 
 # ─── LSL ────────────────────────────────────────────────────────────────
 LSL_STREAM_TYPE  = "EEG"

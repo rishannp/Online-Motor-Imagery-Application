@@ -6,7 +6,8 @@ from config import (
     CUE_DURATION, TRIAL_DURATION,
     SAMPLING_RATE,
     INTER_TRIAL_PAUSE,
-    INTER_LEVEL_PAUSE
+    INTER_LEVEL_PAUSE,
+    BASELINE_SECONDS,
 )
 
 FPS = 60
@@ -22,7 +23,7 @@ DOT_CENTER_X, DOT_Y = SCREEN_W // 2, SCREEN_H // 2
 PREVIEW_BLINK_MS = 400
 
 def ms(x):
-    return int(x * 1000)
+    return int(float(x) * 1000.0)
 
 def circle_rect_collision(cx, cy, r, rect):
     closest_x = max(rect.left, min(cx, rect.right))
@@ -70,16 +71,21 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
     trial_ms = ms(TRIAL_DURATION)
     iti_ms   = ms(float(INTER_TRIAL_PAUSE))
     ilp_ms   = ms(float(INTER_LEVEL_PAUSE))
+    baseline_ms = ms(float(BASELINE_SECONDS))  # <-- NEW
 
-    STATE_TRIAL = 0
-    STATE_ITI   = 1
-    STATE_ILP   = 2
-    state = STATE_TRIAL
+    STATE_BASELINE = -1   # <-- NEW: only at the beginning
+    STATE_TRIAL    = 0
+    STATE_ITI      = 1
+    STATE_ILP      = 2
+
+    state = STATE_BASELINE
 
     level, ti, hits, misses = 1, 0, 0, 0
     spawns = spawn_list()
     side = spawns[ti]
-    trial_start = pygame.time.get_ticks()
+
+    baseline_start = pygame.time.get_ticks()  # <-- NEW
+    trial_start = None
     iti_start = None
     ilp_start = None
 
@@ -90,11 +96,11 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
     trials, tid = {}, 0
 
     _drain_queue(eeg_chunk_q)
+    _drain_queue(action_q)  # don't let old None/cmds leak into baseline/trial
 
     clock = pygame.time.Clock()
     run = True
 
-    baseline_active = True
     last_cmd = None
 
     last_adapt = 0
@@ -114,24 +120,60 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
             if e.type == pygame.QUIT:
                 run = False
 
+        # ─────────────────────────────────────────────────────────────
+        # BASELINE (START-ONLY): countdown from BASELINE_SECONDS
+        # ─────────────────────────────────────────────────────────────
+        if state == STATE_BASELINE:
+            _drain_queue(eeg_chunk_q)
+            _drain_queue(action_q)
+
+            DOT_X = DOT_CENTER_X
+            last_cmd = None
+
+            # Just show neutral paddles during baseline
+            _draw_paddles(screen, GREY, GREY)
+            pygame.draw.circle(screen, PLAYER_COLOR, (int(DOT_X), DOT_Y), PLAYER_RADIUS)
+
+            screen.blit(font.render(f"Level {level}/{NUM_LEVELS}", True, TEXT_COLOR), (10, 10))
+            screen.blit(font.render("Baseline (Rest)", True, TEXT_COLOR),
+                        (DOT_CENTER_X - 120, 20))
+
+            remain = max(0, baseline_ms - (ts - baseline_start))
+            screen.blit(font.render(f"Starting in: {remain/1000:.1f}s", True, TEXT_COLOR),
+                        (DOT_CENTER_X - 120, 60))
+
+            pygame.display.flip()
+            clock.tick(FPS)
+
+            if ts - baseline_start >= baseline_ms:
+                # Start the very first trial immediately after baseline
+                state = STATE_TRIAL
+                trial_start = ts
+                DOT_X = DOT_CENTER_X
+                last_cmd = None
+                _drain_queue(eeg_chunk_q)
+                _drain_queue(action_q)
+            continue
+
+        # ─────────────────────────────────────────────────────────────
+        # TRIAL
+        # ─────────────────────────────────────────────────────────────
         if state == STATE_TRIAL:
             new_cmd = _drain_latest_cmd(action_q)
 
+            # After baseline is over, we DO NOT re-enter baseline mode.
+            # None means "no update" -> keep last_cmd.
             if new_cmd in (0, 1):
                 last_cmd = new_cmd
-                baseline_active = False
-            elif baseline_active:
-                last_cmd = None
 
-            baseline_mode = baseline_active
-
-            if baseline_mode:
-                DOT_X = DOT_CENTER_X
+            # Movement (only if last_cmd has been set at least once)
+            if last_cmd == 0 and DOT_X - PLAYER_RADIUS > LEFT_X + PADDLE_W:
+                DOT_X -= PLAYER_SPEED
+            elif last_cmd == 1 and DOT_X + PLAYER_RADIUS < RIGHT_X:
+                DOT_X += PLAYER_SPEED
             else:
-                if last_cmd == 0 and DOT_X - PLAYER_RADIUS > LEFT_X + PADDLE_W:
-                    DOT_X -= PLAYER_SPEED
-                elif last_cmd == 1 and DOT_X + PLAYER_RADIUS < RIGHT_X:
-                    DOT_X += PLAYER_SPEED
+                # if last_cmd is None, DOT stays where it is (typically centered at start)
+                pass
 
             cursor_positions.append(DOT_X)
 
@@ -164,10 +206,6 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
             ac = (0, 255, 0) if (ts - last_adapt) < adapt_dur else GREY
             screen.blit(font.render("Adapting", True, ac), (260, 10))
 
-            if baseline_mode:
-                screen.blit(font.render("Baseline (Rest)", True, TEXT_COLOR),
-                            (DOT_CENTER_X - 105, 20))
-
             pygame.display.flip()
             clock.tick(FPS)
 
@@ -182,11 +220,13 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
                 outcome, misses = 'miss', misses + 1
 
             if outcome:
+                # Send trial label + windows for adaptation/training
                 label_q.put((side, trial_wins.copy()))
 
+                # Save raw EEG for the trial
                 if len(trial_eeg_chunks) > 0:
-                    cont = np.vstack(trial_eeg_chunks)
-                    eeg_arr = cont.T.astype(np.float32)
+                    cont = np.vstack(trial_eeg_chunks)          # [T, 64]
+                    eeg_arr = cont.T.astype(np.float32)         # [64, T]
                 else:
                     eeg_arr = np.empty((0, 0), dtype=np.float32)
 
@@ -197,15 +237,18 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
                     'cursor_x' : np.array(cursor_positions, dtype=np.float32),
                     'hit'      : (outcome == 'hit')
                 }
-                tid += 1
+                tid += 1  # <-- IMPORTANT: don't overwrite the same key
 
+                # --- Per-trial reset ---
                 trial_wins.clear()
                 last_win = None
                 trial_eeg_chunks.clear()
                 cursor_positions.clear()
                 DOT_X = DOT_CENTER_X
+                last_cmd = None
 
                 _drain_queue(eeg_chunk_q)
+                # ----------------------
 
                 ti += 1
                 if ti >= TRIALS_PER_LEVEL:
@@ -224,8 +267,15 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
                     iti_start = ts
                     continue
 
+        # ─────────────────────────────────────────────────────────────
+        # ITI (inter-trial interval) — unchanged
+        # ─────────────────────────────────────────────────────────────
         elif state == STATE_ITI:
             _drain_queue(eeg_chunk_q)
+
+            # Always recenter during ITI
+            DOT_X = DOT_CENTER_X
+            last_cmd = None
 
             blink_on = ((ts // PREVIEW_BLINK_MS) % 2) == 0
             lc = YELLOW if (side == 0 and blink_on) else GREY
@@ -251,11 +301,20 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
             if ts - iti_start >= iti_ms:
                 trial_start = ts
                 state = STATE_TRIAL
+                DOT_X = DOT_CENTER_X
+                last_cmd = None
                 _drain_queue(eeg_chunk_q)
                 continue
 
+        # ─────────────────────────────────────────────────────────────
+        # ILP (inter-level pause) — unchanged
+        # ─────────────────────────────────────────────────────────────
         elif state == STATE_ILP:
             _drain_queue(eeg_chunk_q)
+
+            # Always recenter during ILP
+            DOT_X = DOT_CENTER_X
+            last_cmd = None
 
             blink_on = ((ts // PREVIEW_BLINK_MS) % 2) == 0
             lc = YELLOW if (side == 0 and blink_on) else GREY
@@ -282,6 +341,8 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
             if ts - ilp_start >= ilp_ms:
                 trial_start = ts
                 state = STATE_TRIAL
+                DOT_X = DOT_CENTER_X
+                last_cmd = None
                 _drain_queue(eeg_chunk_q)
                 continue
 

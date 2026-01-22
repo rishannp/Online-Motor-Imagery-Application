@@ -14,7 +14,7 @@
     <BufferSize>1</BufferSize>
     <IsSlave>false</IsSlave>
     <TriggerLineEnabled>false</TriggerLineEnabled>
-    <HoldEnabled>true</HoldEnabled>
+    <HoldEnabled>false</HoldEnabled>
     <CounterEnabled>false</CounterEnabled>
     <InternalSignalGeneratorSettings>
       <Enabled>false</Enabled>

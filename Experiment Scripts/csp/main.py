@@ -59,28 +59,31 @@ def main():
             if chunk is None:
                 continue
 
-            # Save raw EEG chunks for trial logging (game does np.vstack(list_of_chunks))
             eeg_chunk_q.put(chunk)
 
-            # Append chunk into ring buffer sample-by-sample
             for row in chunk:
                 buf.append(row)
 
             if len(buf) < win:
                 continue
 
-            window = np.asarray(buf, dtype=np.float32)  # most recent WINDOW_SIZE
+            window = np.asarray(buf, dtype=np.float32)
 
-            # Maintain raw window for the game to capture per-trial windows
             raw_eeg_q.clear()
             raw_eeg_q.append(window)
 
-            cmd = pipeline.process(window)
+            cmd = pipeline.process(window, n_new=chunk.shape[0])  # None during baseline, else 0/1
 
-            # Optional but recommended: only push command when it changes
-            if cmd != last_cmd:
-                action_q.put(cmd)
-                last_cmd = cmd
+            # DISCRETE queue rule: only push on change (or baseline->active transition).
+            if cmd is None:
+                if last_cmd is not None:
+                    action_q.put(None)
+                    last_cmd = None
+            else:
+                cmd = int(cmd)
+                if last_cmd is None or cmd != last_cmd:
+                    action_q.put(cmd)
+                    last_cmd = cmd
 
             now = time.time()
             if now - last_dbg > 1.0:

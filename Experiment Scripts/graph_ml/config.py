@@ -7,11 +7,11 @@ import os
 GRAPH_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\graph_ml"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "000"
+SUBJECT_ID = "005"
 # ─── TRAINING SOURCE SESSION (read pkl from neurofeedback) ───────────────
-TRAIN_SESSION_ID = "006"
+TRAIN_SESSION_ID = "001"
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────
-CURRENT_SESSION_ID = "002"
+CURRENT_SESSION_ID = "000"
 
 # ─── WHERE TRAINING PKL LIVES (NEUROFEEDBACK) ────────────────────────────
 NEUROFEEDBACK_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback"
@@ -43,7 +43,7 @@ MODEL_OUT_DIR = os.path.join(
 os.makedirs(MODEL_OUT_DIR, exist_ok=True)
 
 # ─── GAME PARAMETERS ─────────────────────
-NUM_LEVELS        = 5
+NUM_LEVELS        = 1
 TRIALS_PER_LEVEL  = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
@@ -80,6 +80,15 @@ KL_KEEP_PCTL = 70
 
 # Optional smoothing of online predictions
 SMOOTH_VOTES = 5
+# ─── ONLINE CONTROL (MARGIN + BASELINE CENTERING) ────────────────────────
+# Use signed classifier score (margin/logit) instead of hard labels for smoothing.
+USE_MARGIN_OUTPUT = True
+
+# Subtract mean baseline margin so "rest" is ~0-mean (kills drift without deadzone/decay).
+ENABLE_BASELINE_CENTERING = True
+
+# Optional: ignore first N seconds of baseline margins (filter warm-up) when estimating baseline mean.
+BASELINE_WARMUP_SECONDS = 2.0
 
 # ─── LSL ────────────────────────────────────────────────────────────────
 LSL_STREAM_TYPE  = "EEG"

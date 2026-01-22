@@ -7,7 +7,7 @@ from config import (
     CUE_DURATION, TRIAL_DURATION,
     SAMPLING_RATE,
     INTER_TRIAL_PAUSE,
-    INTER_LEVEL_PAUSE
+    INTER_LEVEL_PAUSE,
 )
 
 FPS = 60
@@ -118,8 +118,15 @@ def run_game(action_q, adapt_q, game_states, label_q, raw_eeg_q, eeg_chunk_q):
         if state == STATE_TRIAL:
             new_cmd = _drain_latest_cmd(action_q)
 
-            if new_cmd in (0, 1):
-                last_cmd = new_cmd
+            # Commands:
+            #   None -> baseline/rest (cursor locked to center)
+            #   0    -> LEFT
+            #   1    -> RIGHT
+            if new_cmd is not None:
+                try:
+                    last_cmd = int(new_cmd)
+                except Exception:
+                    last_cmd = None
                 baseline_active = False
             elif baseline_active:
                 last_cmd = None

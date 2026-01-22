@@ -1,0 +1,70 @@
+{
+  "best": {
+    "subject_id": "005",
+    "train_session_id": "001",
+    "current_session_id": "000",
+    "train_session_pkl": "C:\\Users\\uceerjp\\Desktop\\PhD\\Year 2\\online experiments\\Online-Motor-Imagery-Decoder\\Experiment Scripts\\neurofeedback\\training_results\\Subject_005\\Session_001\\session_data.pkl",
+    "sampling_rate": 256,
+    "window_size_samples": 256,
+    "train_hop_samples": 256,
+    "csp_channels": [
+      "FC5",
+      "FC3",
+      "FC1",
+      "FCz",
+      "FC2",
+      "FC4",
+      "FC6",
+      "C5",
+      "C3",
+      "C1",
+      "Cz",
+      "C2",
+      "C4",
+      "C6",
+      "CP5",
+      "CP3",
+      "CP1",
+      "CPz",
+      "CP2",
+      "CP4",
+      "CP6"
+    ],
+    "csp_ncomp": 6,
+    "csp_reg": 1e-06,
+    "best_model": "svm_linear",
+    "best_params": {
+      "clf__C": 1.0
+    }
+  },
+  "all_results": [
+    {
+      "model": "svm_linear",
+      "val_acc": 0.56,
+      "val_cm": [
+        [
+          42,
+          36
+        ],
+        [
+          30,
+          42
+        ]
+      ],
+      "test_acc": 0.5297297297297298,
+      "test_cm": [
+        [
+          48,
+          47
+        ],
+        [
+          40,
+          50
+        ]
+      ],
+      "best_params": {
+        "clf__C": 1.0
+      }
+    }
+  ]
+}
