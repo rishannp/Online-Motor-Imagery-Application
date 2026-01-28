@@ -1,0 +1,208 @@
+{
+  "tag": "PART2_CSP_MOTOR",
+  "all": [
+    {
+      "model": "logreg",
+      "val_acc": 0.5446428571428571,
+      "val_cm": [
+        [
+          30,
+          25
+        ],
+        [
+          26,
+          31
+        ]
+      ],
+      "test_acc": 0.5454545454545454,
+      "test_cm": [
+        [
+          31,
+          23
+        ],
+        [
+          27,
+          29
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.1,
+        "clf__penalty": "l2"
+      }
+    },
+    {
+      "model": "svm_linear",
+      "val_acc": 0.5446428571428571,
+      "val_cm": [
+        [
+          31,
+          24
+        ],
+        [
+          27,
+          30
+        ]
+      ],
+      "test_acc": 0.5181818181818182,
+      "test_cm": [
+        [
+          32,
+          22
+        ],
+        [
+          31,
+          25
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.1
+      }
+    },
+    {
+      "model": "svm_rbf",
+      "val_acc": 0.5803571428571429,
+      "val_cm": [
+        [
+          32,
+          23
+        ],
+        [
+          24,
+          33
+        ]
+      ],
+      "test_acc": 0.5363636363636364,
+      "test_cm": [
+        [
+          31,
+          23
+        ],
+        [
+          28,
+          28
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0,
+        "clf__gamma": 0.01
+      }
+    },
+    {
+      "model": "knn",
+      "val_acc": 0.5178571428571429,
+      "val_cm": [
+        [
+          24,
+          31
+        ],
+        [
+          23,
+          34
+        ]
+      ],
+      "test_acc": 0.5454545454545454,
+      "test_cm": [
+        [
+          26,
+          28
+        ],
+        [
+          22,
+          34
+        ]
+      ],
+      "best_params": {
+        "clf__n_neighbors": 15,
+        "clf__weights": "uniform"
+      }
+    },
+    {
+      "model": "rf",
+      "val_acc": 0.5803571428571429,
+      "val_cm": [
+        [
+          34,
+          21
+        ],
+        [
+          26,
+          31
+        ]
+      ],
+      "test_acc": 0.5,
+      "test_cm": [
+        [
+          27,
+          27
+        ],
+        [
+          28,
+          28
+        ]
+      ],
+      "best_params": {
+        "clf__max_depth": null,
+        "clf__n_estimators": 500
+      }
+    },
+    {
+      "model": "gboost",
+      "val_acc": 0.5357142857142857,
+      "val_cm": [
+        [
+          36,
+          19
+        ],
+        [
+          33,
+          24
+        ]
+      ],
+      "test_acc": 0.4636363636363636,
+      "test_cm": [
+        [
+          27,
+          27
+        ],
+        [
+          32,
+          24
+        ]
+      ],
+      "best_params": {
+        "clf__learning_rate": 0.05,
+        "clf__max_depth": 2,
+        "clf__n_estimators": 300
+      }
+    }
+  ],
+  "best": {
+    "name": "svm_rbf",
+    "val_acc": 0.5803571428571429,
+    "test_acc": 0.5363636363636364,
+    "val_cm": [
+      [
+        32,
+        23
+      ],
+      [
+        24,
+        33
+      ]
+    ],
+    "test_cm": [
+      [
+        31,
+        23
+      ],
+      [
+        28,
+        28
+      ]
+    ],
+    "best_params": {
+      "clf__C": 10.0,
+      "clf__gamma": 0.01
+    }
+  }
+}

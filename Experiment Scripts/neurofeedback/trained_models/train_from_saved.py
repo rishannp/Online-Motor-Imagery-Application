@@ -42,9 +42,9 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 # =============================
 # CONFIG
 # =============================
-SESSION_PKL = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_006\Session_001\session_data.pkl"
+SESSION_PKL = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\training_results\Subject_007\Session_001\session_data.pkl"
 FOUNDATION_PT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\3s_0.5s_8-30Hz_model.pt"
-OUT_DIR = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Subject_006\Session_001_runs"
+OUT_DIR = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback\trained_models\Subject_007\Session_001_runs"
 
 # --- Windowing ---
 WINDOW_SEC          = 3.0

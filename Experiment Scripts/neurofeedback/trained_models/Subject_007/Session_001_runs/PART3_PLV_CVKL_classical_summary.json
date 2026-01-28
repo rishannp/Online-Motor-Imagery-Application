@@ -1,0 +1,207 @@
+{
+  "tag": "PART3_PLV_CVKL",
+  "all": [
+    {
+      "model": "logreg",
+      "val_acc": 0.5267857142857143,
+      "val_cm": [
+        [
+          50,
+          5
+        ],
+        [
+          48,
+          9
+        ]
+      ],
+      "test_acc": 0.42727272727272725,
+      "test_cm": [
+        [
+          36,
+          18
+        ],
+        [
+          45,
+          11
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.01,
+        "clf__penalty": "l2"
+      }
+    },
+    {
+      "model": "svm_linear",
+      "val_acc": 0.5357142857142857,
+      "val_cm": [
+        [
+          50,
+          5
+        ],
+        [
+          47,
+          10
+        ]
+      ],
+      "test_acc": 0.38181818181818183,
+      "test_cm": [
+        [
+          31,
+          23
+        ],
+        [
+          45,
+          11
+        ]
+      ],
+      "best_params": {
+        "clf__C": 0.01
+      }
+    },
+    {
+      "model": "svm_rbf",
+      "val_acc": 0.4732142857142857,
+      "val_cm": [
+        [
+          43,
+          12
+        ],
+        [
+          47,
+          10
+        ]
+      ],
+      "test_acc": 0.4636363636363636,
+      "test_cm": [
+        [
+          37,
+          17
+        ],
+        [
+          42,
+          14
+        ]
+      ],
+      "best_params": {
+        "clf__C": 1.0,
+        "clf__gamma": 0.01
+      }
+    },
+    {
+      "model": "knn",
+      "val_acc": 0.5357142857142857,
+      "val_cm": [
+        [
+          32,
+          23
+        ],
+        [
+          29,
+          28
+        ]
+      ],
+      "test_acc": 0.4909090909090909,
+      "test_cm": [
+        [
+          26,
+          28
+        ],
+        [
+          28,
+          28
+        ]
+      ],
+      "best_params": {
+        "clf__n_neighbors": 9,
+        "clf__weights": "uniform"
+      }
+    },
+    {
+      "model": "rf",
+      "val_acc": 0.4642857142857143,
+      "val_cm": [
+        [
+          42,
+          13
+        ],
+        [
+          47,
+          10
+        ]
+      ],
+      "test_acc": 0.5,
+      "test_cm": [
+        [
+          39,
+          15
+        ],
+        [
+          40,
+          16
+        ]
+      ],
+      "best_params": {
+        "clf__max_depth": null,
+        "clf__n_estimators": 500
+      }
+    },
+    {
+      "model": "gboost",
+      "val_acc": 0.49107142857142855,
+      "val_cm": [
+        [
+          43,
+          12
+        ],
+        [
+          45,
+          12
+        ]
+      ],
+      "test_acc": 0.45454545454545453,
+      "test_cm": [
+        [
+          35,
+          19
+        ],
+        [
+          41,
+          15
+        ]
+      ],
+      "best_params": {
+        "clf__learning_rate": 0.1,
+        "clf__max_depth": 3,
+        "clf__n_estimators": 100
+      }
+    }
+  ],
+  "best": {
+    "name": "svm_linear",
+    "val_acc": 0.5357142857142857,
+    "test_acc": 0.38181818181818183,
+    "val_cm": [
+      [
+        50,
+        5
+      ],
+      [
+        47,
+        10
+      ]
+    ],
+    "test_cm": [
+      [
+        31,
+        23
+      ],
+      [
+        45,
+        11
+      ]
+    ],
+    "best_params": {
+      "clf__C": 0.01
+    }
+  }
+}
