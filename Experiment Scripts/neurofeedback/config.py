@@ -6,7 +6,7 @@ import os
 METHOD = 'ar'  # alpha-asymmetry neurofeedback trainer
 
 # ─── GAME PARAMETERS ────────────────────────────────────────────────────
-NUM_LEVELS       = 10
+NUM_LEVELS       = 5
 TRIALS_PER_LEVEL = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
@@ -30,8 +30,8 @@ CSP_CHANNELS = [
 ]
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
-SUBJECT_ID  = "008"
-SESSION_ID  = "001"
+SUBJECT_ID  = "006"
+SESSION_ID  = "002"
 RESULTS_DIR = "./training_results"
 
 SUBJECT_DIR = os.path.join(RESULTS_DIR, f"Subject_{SUBJECT_ID}")

@@ -5,11 +5,11 @@ import os
 CSP_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\csp"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "005"
+SUBJECT_ID = "006"
 # where we read pkl to train)
 TRAIN_SESSION_ID = "001"
 # session we’re running right now)
-CURRENT_SESSION_ID = "000"
+CURRENT_SESSION_ID = "002"
 
 # ─── WHERE TRAINING PKL LIVES (NEUROFEEDBACK FOLDER) ─────────────────────
 NEUROFEEDBACK_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\neurofeedback"
@@ -44,7 +44,7 @@ MODEL_OUT_DIR = os.path.join(
 os.makedirs(MODEL_OUT_DIR, exist_ok=True)
 
 # ─── GAME PARAMETERS ───────────────────────────────
-NUM_LEVELS        = 1
+NUM_LEVELS        = 5
 TRIALS_PER_LEVEL  = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
