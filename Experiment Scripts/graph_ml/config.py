@@ -7,7 +7,7 @@ import os
 GRAPH_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\graph_ml"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "006"
+SUBJECT_ID = "003"
 # ─── TRAINING SOURCE SESSION (read pkl from neurofeedback) ───────────────
 TRAIN_SESSION_ID = "001"
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────

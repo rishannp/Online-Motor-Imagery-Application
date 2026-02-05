@@ -1,0 +1,22 @@
+{
+  "METHOD": "'ar'",
+  "NUM_LEVELS": "10",
+  "TRIALS_PER_LEVEL": "20",
+  "INTER_TRIAL_PAUSE": "2.0",
+  "INTER_LEVEL_PAUSE": "5.0",
+  "CUE_DURATION": "1.0",
+  "TRIAL_DURATION": "10.0",
+  "SAMPLING_RATE": "256",
+  "FEEDBACK_INTERVAL": "0.04",
+  "WINDOW_SIZE": "512",
+  "STEP_SIZE": "10",
+  "CSP_CHANNELS": "['FC5', 'FC3', 'FC1', 'FCz', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 'Cz', 'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPz', 'CP2', 'CP4', 'CP6']",
+  "SUBJECT_ID": "'0010'",
+  "SESSION_ID": "'001'",
+  "RESULTS_DIR": "'./training_results'",
+  "SUBJECT_DIR": "'./training_results\\\\Subject_0010'",
+  "SESSION_DIR": "'./training_results\\\\Subject_0010\\\\Session_001'",
+  "AR_BASELINE_SECONDS": "10.0",
+  "AR_ZSCORE_SECONDS": "30.0",
+  "AR_ZSCORE_CLIP": "3.0"
+}

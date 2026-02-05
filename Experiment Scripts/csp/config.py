@@ -5,7 +5,7 @@ import os
 CSP_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\csp"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "006"
+SUBJECT_ID = "003"
 # where we read pkl to train)
 TRAIN_SESSION_ID = "001"
 # session we’re running right now)
