@@ -1,0 +1,20 @@
+{
+  "subject_id": "005",
+  "train_session_id": "002",
+  "current_session_id": "002",
+  "sampling_rate": 256.0,
+  "window_size": 256,
+  "step_size": 10,
+  "apply_bandpass": true,
+  "epsilon": 1e-06,
+  "cv_keep_pctl": 30,
+  "kl_keep_pctl": 70,
+  "best_model": "LogReg",
+  "best_params": {
+    "clf__C": 1.0,
+    "clf__penalty": "l2",
+    "clf__solver": "lbfgs"
+  },
+  "val_acc": 0.5422584400465658,
+  "test_acc": 0.605814739688979
+}

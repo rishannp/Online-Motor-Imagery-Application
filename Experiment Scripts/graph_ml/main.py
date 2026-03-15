@@ -8,7 +8,7 @@ from collections import deque
 import numpy as np
 
 from config import (
-    CURRENT_SESSION_DIR, MODEL_OUT_DIR, TRAIN_SESSION_PKL,
+    CURRENT_SESSION_DIR, MODEL_OUT_DIR, TRAIN_SESSION_PKLS,
     WINDOW_SIZE, STEP_SIZE,
 )
 
@@ -28,15 +28,13 @@ def main():
             indent=2,
         )
 
-    print(f"[GRAPH APP] training source pkl: {TRAIN_SESSION_PKL}", flush=True)
+    print(f"[GRAPH APP] training sources: {[(a, s) for a, s, _ in TRAIN_SESSION_PKLS]}", flush=True)
     model_path, pack = train_and_save()
     print(f"[GRAPH APP] saved model pack: {model_path}", flush=True)
     print(f"[GRAPH APP] model outputs dir: {MODEL_OUT_DIR}", flush=True)
     print(f"[GRAPH APP] current session dir: {CURRENT_SESSION_DIR}", flush=True)
 
     pipeline = GraphMLPipeline(pack)
-
-    # Start the causal filter clean (state then persists across online windows).
     reset_preprocess_state()
 
     action_q = Queue()
@@ -50,24 +48,16 @@ def main():
 
         win = int(WINDOW_SIZE)
         step = int(STEP_SIZE)
-
-        # Ring buffer of last WINDOW_SIZE samples
         buf = deque(maxlen=win)
-
-        # We do inference every STEP_SIZE new samples, on the most recent WINDOW_SIZE.
         samples_since_last_infer = 0
-
-        # Optional but recommended: only push command when it changes
         last_cmd = None
-
         last_dbg = time.time()
 
         while True:
-            chunk = stream_chunk(max_wait_sec=10.0)  # [n, 64] or None
+            chunk = stream_chunk(max_wait_sec=10.0)
             if chunk is None:
                 continue
 
-            # For session logging: game does np.vstack(trial_eeg_chunks), so chunk arrays are fine.
             eeg_chunk_q.put(chunk)
 
             for row in chunk:
@@ -77,24 +67,17 @@ def main():
 
             if len(buf) < win:
                 continue
-
             if samples_since_last_infer < step:
                 continue
 
-            # ---- FIX: don't silently skip inference cycles when chunk > step ----
             n_infers = samples_since_last_infer // step
             samples_since_last_infer = samples_since_last_infer % step
 
             cmd = last_cmd
-
-            # Advance the pipeline state once per 'step' so baseline/smoothing timing stays honest.
-            # We only emit the final cmd (prevents queue spam).
             for _ in range(int(n_infers)):
-                window = np.asarray(buf, dtype=np.float32)  # [win, 64]
-
+                window = np.asarray(buf, dtype=np.float32)
                 raw_eeg_q.clear()
                 raw_eeg_q.append(window)
-
                 cmd = pipeline.process(window, n_new=step)
 
             if cmd != last_cmd:

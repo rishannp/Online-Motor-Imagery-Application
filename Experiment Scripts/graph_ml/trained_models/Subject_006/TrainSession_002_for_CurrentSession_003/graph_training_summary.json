@@ -1,0 +1,19 @@
+{
+  "subject_id": "006",
+  "train_session_id": "002",
+  "current_session_id": "003",
+  "sampling_rate": 256.0,
+  "window_size": 256,
+  "step_size": 10,
+  "apply_bandpass": true,
+  "epsilon": 1e-06,
+  "cv_keep_pctl": 30,
+  "kl_keep_pctl": 70,
+  "best_model": "KNN",
+  "best_params": {
+    "clf__n_neighbors": 5,
+    "clf__weights": "uniform"
+  },
+  "val_acc": 0.5327825159914712,
+  "test_acc": 0.4909043659043659
+}

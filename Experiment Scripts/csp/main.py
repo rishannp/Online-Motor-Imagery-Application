@@ -8,7 +8,7 @@ from collections import deque
 import numpy as np
 
 from config import (
-    CURRENT_SESSION_DIR, MODEL_OUT_DIR, TRAIN_SESSION_PKL,
+    CURRENT_SESSION_DIR, MODEL_OUT_DIR, TRAIN_SESSION_PKLS,
     WINDOW_SIZE, STEP_SIZE, SAMPLING_RATE,
 )
 
@@ -20,7 +20,7 @@ from preprocess import reset_preprocess_state
 
 
 def main():
-    # Snapshot config for THIS current session
+    # Snapshot config for this run
     with open(f"{CURRENT_SESSION_DIR}/config.json", "w") as f:
         json.dump(
             {k: repr(v) for k, v in vars(__import__("config")).items() if k.isupper()},
@@ -28,15 +28,13 @@ def main():
             indent=2,
         )
 
-    print(f"[CSP APP] training source pkl: {TRAIN_SESSION_PKL}", flush=True)
+    print(f"[CSP APP] training sources: {[(a, s) for a, s, _ in TRAIN_SESSION_PKLS]}", flush=True)
     model_path, pack = train_and_save()
     print(f"[CSP APP] saved model pack: {model_path}", flush=True)
     print(f"[CSP APP] model outputs dir: {MODEL_OUT_DIR}", flush=True)
     print(f"[CSP APP] current session dir: {CURRENT_SESSION_DIR}", flush=True)
 
     pipeline = CSPPipeline(pack)
-
-    # Reset causal filter state once at startup (online runs keep state across windows).
     reset_preprocess_state()
 
     action_q    = Queue()
@@ -49,13 +47,12 @@ def main():
         print("[BCI] loop started (sliding chunk inference)", flush=True)
 
         win = int(WINDOW_SIZE)
-        buf = deque(maxlen=win)  # ring buffer of last WINDOW_SIZE samples
-
+        buf = deque(maxlen=win)
         last_cmd = None
         last_dbg = time.time()
 
         while True:
-            chunk = stream_chunk(max_wait_sec=10.0)  # [n, nch] or None
+            chunk = stream_chunk(max_wait_sec=10.0)
             if chunk is None:
                 continue
 
@@ -68,13 +65,11 @@ def main():
                 continue
 
             window = np.asarray(buf, dtype=np.float32)
-
             raw_eeg_q.clear()
             raw_eeg_q.append(window)
 
-            cmd = pipeline.process(window, n_new=chunk.shape[0])  # None during baseline, else 0/1
+            cmd = pipeline.process(window, n_new=chunk.shape[0])
 
-            # DISCRETE queue rule: only push on change (or baseline->active transition).
             if cmd is None:
                 if last_cmd is not None:
                     action_q.put(None)

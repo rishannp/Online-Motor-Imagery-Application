@@ -13,19 +13,16 @@ from preprocess import preprocess_window
 
 
 def _logvar_feats(window_tc: np.ndarray, W: np.ndarray, picks: np.ndarray) -> np.ndarray:
-    """
-    window_tc: [T, C]
-    W: [C, C]
-    picks: [k]
-    returns: [1, k] log-variance features
-    """
     X = window_tc.T.astype(np.float32)  # [C, T]
-    Z = (W.T @ X)                       # [C, T]
-    Zp = Z[picks, :]                    # [k, T]
+    Z = (W.T @ X)
+    Zp = Z[picks, :]
+
+    Zp = Zp - Zp.mean(axis=1, keepdims=True)  # <-- add this
 
     var = np.var(Zp, axis=1).astype(np.float32)
     var /= (np.sum(var) + 1e-12)
     return np.log(var + 1e-12)[None, :]
+
 
 
 class CSPPipeline:
