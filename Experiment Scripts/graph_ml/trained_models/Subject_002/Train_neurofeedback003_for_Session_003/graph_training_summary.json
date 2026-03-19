@@ -1,0 +1,26 @@
+{
+  "subject_id": "002",
+  "train_sessions": [
+    [
+      "neurofeedback",
+      "003"
+    ]
+  ],
+  "train_session_id": "neurofeedback:003",
+  "current_session_id": "003",
+  "sampling_rate": 256.0,
+  "window_size": 256,
+  "step_size": 10,
+  "apply_bandpass": true,
+  "epsilon": 1e-06,
+  "cv_keep_pctl": 30,
+  "kl_keep_pctl": 70,
+  "best_model": "SVC",
+  "best_params": {
+    "clf__C": 0.1,
+    "clf__gamma": "scale",
+    "clf__kernel": "linear"
+  },
+  "val_acc": 0.66224552745219,
+  "test_acc": 0.6382920110192838
+}

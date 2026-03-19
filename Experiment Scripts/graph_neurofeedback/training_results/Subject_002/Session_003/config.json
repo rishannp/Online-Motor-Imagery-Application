@@ -1,6 +1,6 @@
 {
   "METHOD": "'ar'",
-  "NUM_LEVELS": "1",
+  "NUM_LEVELS": "5",
   "TRIALS_PER_LEVEL": "20",
   "INTER_TRIAL_PAUSE": "2.0",
   "INTER_LEVEL_PAUSE": "5.0",
@@ -20,11 +20,11 @@
   "PLV_BANDPASS_LO": "8.0",
   "PLV_BANDPASS_HI": "30.0",
   "PLV_BANDPASS_ORDER": "4",
-  "SUBJECT_ID": "'003'",
-  "SESSION_ID": "'001'",
+  "SUBJECT_ID": "'002'",
+  "SESSION_ID": "'003'",
   "RESULTS_DIR": "'./training_results'",
-  "SUBJECT_DIR": "'./training_results\\\\Subject_003'",
-  "SESSION_DIR": "'./training_results\\\\Subject_003\\\\Session_001'",
+  "SUBJECT_DIR": "'./training_results\\\\Subject_002'",
+  "SESSION_DIR": "'./training_results\\\\Subject_002\\\\Session_001'",
   "AR_BASELINE_SECONDS": "10.0",
   "AR_ZSCORE_SECONDS": "30.0",
   "AR_ZSCORE_CLIP": "3.0"

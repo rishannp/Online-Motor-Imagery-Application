@@ -30,7 +30,7 @@ CSP_CHANNELS = [
 ]
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
-SUBJECT_ID  = "003"
+SUBJECT_ID  = "002"
 SESSION_ID  = "003"
 RESULTS_DIR = "./training_results"
 

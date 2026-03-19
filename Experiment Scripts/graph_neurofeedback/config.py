@@ -6,7 +6,7 @@ import os
 METHOD = 'ar'  # used by preprocess.py; PLV pipeline bypasses it directly
 
 # ─── GAME PARAMETERS ───────────────────────────────────────────────────
-NUM_LEVELS        = 4
+NUM_LEVELS        = 5
 TRIALS_PER_LEVEL  = 20
 INTER_TRIAL_PAUSE = 2.0
 INTER_LEVEL_PAUSE = 5.0
@@ -63,8 +63,8 @@ PLV_BANDPASS_HI      = 30.0
 PLV_BANDPASS_ORDER   = 4
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
-SUBJECT_ID  = "003"
-SESSION_ID  = "002"
+SUBJECT_ID  = "002"
+SESSION_ID  = "001"
 RESULTS_DIR = "./training_results"
 
 SUBJECT_DIR = os.path.join(RESULTS_DIR, f"Subject_{SUBJECT_ID}")
