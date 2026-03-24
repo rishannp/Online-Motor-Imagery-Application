@@ -10,7 +10,7 @@ GRAPH_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online
 SUBJECT_ID = "002"
 
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────
-CURRENT_SESSION_ID = "003"
+CURRENT_SESSION_ID = "004"
 
 # ─── APP ROOTS ───────────────────────────────────────────────────────────
 _EXPERIMENT_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts"

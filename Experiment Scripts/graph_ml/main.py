@@ -80,9 +80,9 @@ def main():
                 raw_eeg_q.append(window)
                 cmd = pipeline.process(window, n_new=step)
 
-            if cmd != last_cmd:
+            if cmd is not None:
                 action_q.put(cmd)
-                last_cmd = cmd
+            last_cmd = cmd
 
             now = time.time()
             if now - last_dbg > 1.0:
