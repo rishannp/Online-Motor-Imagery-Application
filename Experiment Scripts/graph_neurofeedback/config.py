@@ -63,7 +63,7 @@ PLV_BANDPASS_HI      = 30.0
 PLV_BANDPASS_ORDER   = 4
 
 # ─── SUBJECT & SESSION ──────────────────────────────────────────────────
-SUBJECT_ID  = "002"
+SUBJECT_ID  = "012"
 SESSION_ID  = "001"
 RESULTS_DIR = "./training_results"
 

@@ -7,10 +7,10 @@ import os, glob
 GRAPH_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\graph_ml"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "002"
+SUBJECT_ID = "003"
 
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────
-CURRENT_SESSION_ID = "004"
+CURRENT_SESSION_ID = "005"
 
 # ─── APP ROOTS ───────────────────────────────────────────────────────────
 _EXPERIMENT_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts"
