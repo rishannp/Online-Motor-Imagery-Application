@@ -5,7 +5,7 @@ import os, glob
 CSP_APP_ROOT = r"C:\Users\uceerjp\Desktop\PhD\Year 2\online experiments\Online-Motor-Imagery-Decoder\Experiment Scripts\csp"
 
 # ─── SUBJECT ─────────────────────────────────────────────────────────────
-SUBJECT_ID = "003"
+SUBJECT_ID = "002"
 
 # ─── CURRENT LIVE SESSION (this run) ─────────────────────────────────────
 CURRENT_SESSION_ID = "005"
