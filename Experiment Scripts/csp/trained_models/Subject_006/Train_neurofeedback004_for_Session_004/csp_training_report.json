@@ -1,0 +1,75 @@
+{
+  "best": {
+    "subject_id": "006",
+    "train_sessions": [
+      [
+        "neurofeedback",
+        "004"
+      ]
+    ],
+    "train_session_id": "neurofeedback:004",
+    "current_session_id": "004",
+    "sampling_rate": 256,
+    "window_size_samples": 256,
+    "train_hop_samples": 256,
+    "csp_channels": [
+      "FC5",
+      "FC3",
+      "FC1",
+      "FCz",
+      "FC2",
+      "FC4",
+      "FC6",
+      "C5",
+      "C3",
+      "C1",
+      "Cz",
+      "C2",
+      "C4",
+      "C6",
+      "CP5",
+      "CP3",
+      "CP1",
+      "CPz",
+      "CP2",
+      "CP4",
+      "CP6"
+    ],
+    "csp_ncomp": 6,
+    "csp_reg": 1e-06,
+    "best_model": "svm_linear",
+    "best_params": {
+      "clf__C": 10.0
+    }
+  },
+  "all_results": [
+    {
+      "model": "svm_linear",
+      "val_acc": 0.6705882352941176,
+      "val_cm": [
+        [
+          75,
+          20
+        ],
+        [
+          36,
+          39
+        ]
+      ],
+      "test_acc": 0.4900990099009901,
+      "test_cm": [
+        [
+          68,
+          38
+        ],
+        [
+          65,
+          31
+        ]
+      ],
+      "best_params": {
+        "clf__C": 10.0
+      }
+    }
+  ]
+}
