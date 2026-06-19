@@ -4,11 +4,15 @@ EEG trial inspector:
   reduce -> zscore -> 8-30 Hz band-pass -> small Laplacian (C3/C4)
   -> spectrograms (ShortTimeFFT)
   -> AR PSD (Yule–Walker) + bandpower in a target band
+  -> cursor_x time-series (if available)
 Output:
   For each trial, one PNG with:
-    - Row 1: side-by-side spectrograms (C3, C4) sharing a horizontal colorbar on top
-    - Row 2: side-by-side AR PSD curves (C3, C4) with band region shaded
-Title includes Left/Right and Hit/Miss.
+    - Row 1: cursor_x time series (full width)
+    - Row 2: spectrogram (C3)  (full width)
+    - Row 3: spectrogram (C4)  (full width)
+      (Rows 1–3 share the same time axis)
+    - Row 4: AR PSD curves side-by-side (C3 | C4)
+Title includes Left/Right and Hit/Miss; header notes AR band stats and whether cursor trace is shown.
 """
 
 import os
@@ -25,7 +29,7 @@ from scipy.linalg import toeplitz
 # config: channels, mapping, and constants
 # -----------------------------------------
 
-FS_DEFAULT = 256  # fs should always be 256, but i'm defensive
+FS_DEFAULT = 256  # fs should always be 256 for my recordings unless overridden per trial
 
 # canonical channel list (10-20 style ordering that matches the raw array)
 headset_electrodes = [
@@ -85,7 +89,6 @@ def butter_bandpass_sos(lo, hi, fs, order=4):
     nyq = 0.5 * fs
     lo_n = lo / nyq
     hi_n = hi / nyq
-    from scipy.signal import butter
     return butter(order, [lo_n, hi_n], btype='bandpass', output='sos')
 
 def apply_bandpass(x, fs, lo=8.0, hi=30.0, order=4):
@@ -230,17 +233,24 @@ def plot_trial_spectrogram_and_arpsd(
     out_path,
     fmax_spec=20.0,
     vmin=None, vmax=None,
-    title_prefix="Small Laplacian"
+    title_prefix="Small Laplacian",
+    # --- new args for cursor plotting ---
+    cursor_x=None,
+    cursor_fs=None
 ):
     """
-    Create a 2x2 figure:
-      Row 1: spectrograms (C3, C4) with one horizontal colorbar on top
-      Row 2: AR PSD line plots (C3, C4) with band shaded and bandpower annotated
+    Layout:
+      Row 1: Cursor (full width)
+      Row 2: Spectrogram C3 (full width)
+      Row 3: Spectrogram C4 (full width)
+        -> Rows 1–3 share the same time axis (x-limits aligned)
+      Row 4: PSD C3 | PSD C4 (side-by-side)
     """
+    # unpack spectrograms
     entry_C3 = spec_dict.get('C3_spec', None)
     entry_C4 = spec_dict.get('C4_spec', None)
 
-    # --------- prep spectrogram panels ----------
+    # prepare spectrogram panels
     panels = []
     for center, entry in [('C3', entry_C3), ('C4', entry_C4)]:
         if entry is None:
@@ -250,21 +260,18 @@ def plot_trial_spectrogram_and_arpsd(
         if f.size == 0 or t.size == 0 or Sxx.size == 0:
             panels.append((center, None, None, None, None))
             continue
-
         f_c, Sxx_c = _crop_freq(f, Sxx, fmax_spec)
         if f_c.size == 0 or Sxx_c.size == 0:
             panels.append((center, None, None, None, None))
             continue
-
         Sxx_c = Sxx_c[:len(f_c), :len(t)]
         if Sxx_c.shape != (len(f_c), len(t)):
             panels.append((center, None, None, None, None))
             continue
-
         Sxx_db = 10.0 * np.log10(Sxx_c + 1e-20)
         panels.append((center, f_c, t, Sxx_c, Sxx_db))
 
-    # shared color limits (robust) for spectrograms
+    # robust shared color scale for spectrograms
     if vmin is None or vmax is None:
         vals = [Sdb for _, _, _, _, Sdb in panels if Sdb is not None]
         if vals:
@@ -277,47 +284,124 @@ def plot_trial_spectrogram_and_arpsd(
             if vmin is None: vmin = -120
             if vmax is None: vmax = 0
 
-    # --------- build figure (2 rows x 2 cols) ----------
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True, sharey='row')
-    # Row 1 axes (spectrograms)
-    ax_s_c3, ax_s_c4 = axes[0, 0], axes[0, 1]
-    # Row 2 axes (AR PSD)
-    ax_p_c3, ax_p_c4 = axes[1, 0], axes[1, 1]
+    # figure with 4 rows:
+    #   r1,r2,r3 span both columns; r4 has two columns
+    fig = plt.figure(figsize=(14, 14), constrained_layout=True)
+    gs = fig.add_gridspec(nrows=4, ncols=2, height_ratios=[0.8, 1.15, 1.15, 1.0])
 
-    # --------- row 1: spectrograms ----------
+    # Row 1: Cursor (span 2 cols)
+    ax_cursor = fig.add_subplot(gs[0, :])
+
+    # Row 2: Spec C3 (span 2 cols)
+    ax_s_c3 = fig.add_subplot(gs[1, :])
+
+    # Row 3: Spec C4 (span 2 cols)
+    ax_s_c4 = fig.add_subplot(gs[2, :])
+
+    # Row 4: PSDs side-by-side
+    ax_p_c3 = fig.add_subplot(gs[3, 0])
+    ax_p_c4 = fig.add_subplot(gs[3, 1])
+
+    # ----- compute a common time limit for rows 1–3 -----
+    # cursor time length
+    tmax_cursor = None
+    if cursor_x is not None:
+        cursor_x = np.asarray(cursor_x).squeeze()
+        if cursor_x.ndim == 0:
+            cursor_x = np.array([float(cursor_x)])
+        if cursor_x.size > 0:
+            cfs = float(cursor_fs) if (cursor_fs is not None) else float(fs)
+            cfs = max(cfs, 1.0)
+            tmax_cursor = (len(cursor_x) - 1) / cfs
+
+    # spectrogram time length (use the latest available end time)
+    tmax_spec = None
+    for _, f_c, t, _, _ in panels:
+        if f_c is not None and t is not None and len(t) > 0:
+            t_end = float(t[-1])
+            tmax_spec = t_end if (tmax_spec is None or t_end > tmax_spec) else tmax_spec
+
+    # choose common Tmax among available sources
+    tmax = None
+    for cand in (tmax_cursor, tmax_spec):
+        if cand is not None:
+            tmax = cand if (tmax is None or cand > tmax) else tmax
+    if tmax is None:
+        tmax = 0.0  # fallback so set_xlim doesn't choke
+
+    # --------- Row 1: cursor_x time-series ----------
+    if (cursor_x is not None) and (cursor_x.size > 0):
+        t_cursor = np.arange(len(cursor_x), dtype=float) / max(cfs, 1.0)
+        ax_cursor.plot(t_cursor, cursor_x, linewidth=1.5)
+        ax_cursor.set_title("Cursor X position")
+        ax_cursor.set_ylabel("Cursor X")
+        ax_cursor.margins(x=0.01)
+        # optional 0-line if trace straddles zero
+        try:
+            if np.nanmin(cursor_x) < 0 < np.nanmax(cursor_x):
+                ax_cursor.axhline(0.0, linestyle='--', linewidth=0.8, alpha=0.6)
+        except Exception:
+            pass
+    else:
+        ax_cursor.text(0.5, 0.5, "No cursor_x", ha='center', va='center', transform=ax_cursor.transAxes, alpha=0.7)
+
+    ax_cursor.set_xlim(0.0, tmax)
+    ax_cursor.set_xlabel("")  # I keep x-label on the lowest time-aligned panel
+    ax_cursor.tick_params(labelbottom=False)
+
+    # --------- Row 2 & 3: Spectrograms (stacked, time-aligned) ----------
     last_pcm = None
-    for ax, center, entry in [(ax_s_c3, 'C3', panels[0]), (ax_s_c4, 'C4', panels[1])]:
-        if entry[1] is None:
-            ax.set_visible(False)
-            continue
-        _, f_c, t, Sxx_c, Sxx_db = entry
-        T, F = _make_mesh(t, f_c)
-        pcm = ax.pcolormesh(T, F, Sxx_db, shading='auto', vmin=vmin, vmax=vmax)
-        last_pcm = pcm
-        ax.set_title(f"{title_prefix} @ {center}")
-        ax.set_xlabel('Time (s)')
-        if center == 'C3':
-            ax.set_ylabel('Frequency (Hz)')
 
-    # one horizontal colorbar across the top row
+    # C3
+    entry = panels[0]
+    if entry[1] is not None:
+        _, f_c, t, _, Sxx_db = entry
+        T, F = _make_mesh(t, f_c)
+        pcm = ax_s_c3.pcolormesh(T, F, Sxx_db, shading='auto', vmin=vmin, vmax=vmax)
+        last_pcm = pcm
+        ax_s_c3.set_title(f"{title_prefix} @ C3")
+        ax_s_c3.set_ylabel('Frequency (Hz)')
+        ax_s_c3.set_xlim(0.0, tmax)
+        ax_s_c3.tick_params(labelbottom=False)
+    else:
+        ax_s_c3.text(0.5, 0.5, "No C3 spectrogram", ha='center', va='center', transform=ax_s_c3.transAxes, alpha=0.7)
+        ax_s_c3.set_xlim(0.0, tmax)
+        ax_s_c3.tick_params(labelbottom=False)
+
+    # C4
+    entry = panels[1]
+    if entry[1] is not None:
+        _, f_c, t, _, Sxx_db = entry
+        T, F = _make_mesh(t, f_c)
+        pcm = ax_s_c4.pcolormesh(T, F, Sxx_db, shading='auto', vmin=vmin, vmax=vmax)
+        last_pcm = pcm
+        ax_s_c4.set_title(f"{title_prefix} @ C4")
+        ax_s_c4.set_ylabel('Frequency (Hz)')
+        ax_s_c4.set_xlabel('Time (s)')  # bottom of the time-aligned block
+        ax_s_c4.set_xlim(0.0, tmax)
+    else:
+        ax_s_c4.text(0.5, 0.5, "No C4 spectrogram", ha='center', va='center', transform=ax_s_c4.transAxes, alpha=0.7)
+        ax_s_c4.set_xlabel('Time (s)')
+        ax_s_c4.set_xlim(0.0, tmax)
+
+    # one shared horizontal colorbar for both spectrograms
     if last_pcm is not None:
         cbar = fig.colorbar(
             last_pcm, ax=[ax_s_c3, ax_s_c4],
-            orientation='horizontal', pad=0.08, aspect=50
+            orientation='horizontal', pad=0.10, aspect=50
         )
         cbar.set_label('Power (dB)')
 
-    # --------- row 2: AR PSD curves ----------
+    # --------- Row 4: AR PSD curves (side-by-side) ----------
     band = ar_results.get('band', (None, None))
     p3 = ar_results.get('C3', {}).get('bandpower', None)
     p4 = ar_results.get('C4', {}).get('bandpower', None)
     delta = ar_results.get('delta', None)
 
-    # Plot C3
+    # C3 PSD
     f3 = ar_results.get('C3', {}).get('f', np.array([]))
     psd3 = ar_results.get('C3', {}).get('psd', np.array([]))
     if f3.size > 0:
-        # plot in dB for readability
         ax_p_c3.plot(f3, 10*np.log10(psd3 + 1e-20), label='AR PSD (C3)')
         if band[0] is not None and band[1] is not None:
             ax_p_c3.axvspan(band[0], band[1], alpha=0.15, label=f"Band {band[0]:.1f}–{band[1]:.1f} Hz")
@@ -330,7 +414,7 @@ def plot_trial_spectrogram_and_arpsd(
     ax_p_c3.set_title('AR PSD @ C3')
     ax_p_c3.legend(loc='upper right')
 
-    # Plot C4
+    # C4 PSD
     f4 = ar_results.get('C4', {}).get('f', np.array([]))
     psd4 = ar_results.get('C4', {}).get('psd', np.array([]))
     if f4.size > 0:
@@ -346,12 +430,14 @@ def plot_trial_spectrogram_and_arpsd(
     ax_p_c4.set_title('AR PSD @ C4')
     ax_p_c4.legend(loc='upper right')
 
-    # annotate Δ on the figure header area (compact)
+    # --------- header ----------
     label_name = "Left" if label == 0 else "Right" if label == 1 else str(label)
     hit_text = "Hit" if bool(hit) else "Miss"
     header = f"Trial {trial_id} | {label_name} | {hit_text} | fs={fs} Hz"
-    if (p3 is not None) and (p4 is not None) and (delta is not None):
+    if (p3 is not None) and (p4 is not None) and (delta is not None) and (band[0] is not None):
         header += f" | AR band {band[0]:.1f}–{band[1]:.1f} Hz: P3={p3:.3f}, P4={p4:.3f}, Δ={delta:.3f}"
+    if (cursor_x is not None) and (cursor_x.size > 0):
+        header += " | cursor trace shown"
     fig.suptitle(header, fontsize=14)
 
     plt.savefig(out_path, dpi=300, bbox_inches='tight')
@@ -370,7 +456,7 @@ def process_all_trials(
     # STFFT params (balanced temporal detail)
     stft_nperseg=128,
     stft_noverlap=96,
-    # AR params (match online defaults unless you override)
+    # AR params (match online defaults unless I override)
     ar_order: int = 12,
     ar_band: tuple = (10.5, 13.5),
     ar_worN: int = 4096
@@ -381,7 +467,7 @@ def process_all_trials(
       - small Laplacian at C3/C4
       - STFFT spectrograms for C3_sLap and C4_sLap
       - AR PSD (Yule–Walker) for C3_sLap and C4_sLap + bandpower in ar_band
-      - one PNG per trial with a 2x2 layout (specs on top, AR PSD bottom)
+      - one PNG per trial with 4-row layout (cursor, spec C3, spec C4, PSDs)
     returns list of dicts with processed arrays + spectrograms + AR PSD curves and bandpowers.
     """
     os.makedirs(fig_dir, exist_ok=True)
@@ -398,6 +484,10 @@ def process_all_trials(
         label = int(trial.get('label', -1))
         hit = bool(trial.get('hit', False))
 
+        # optional cursor inputs; default to 60 Hz if not provided
+        cursor_x = trial.get('cursor_x', None)
+        cursor_fs = trial.get('cursor_fs', 60)
+
         # shape checks
         if eeg.ndim != 2:
             raise ValueError(f"Trial {trial_key} 'eeg' must be 2D (ch x samples). Got {eeg.shape}.")
@@ -407,7 +497,7 @@ def process_all_trials(
                 f"{max_needed_idx}. Check channel order/mapping."
             )
 
-        # 1) reduce + z + bandpass (you currently use 8–30 here; change hi=15.0 for strict mu)
+        # 1) reduce + z + bandpass (I currently use 8–30 here; hi=15.0 if I want strict mu)
         reduced_filt, kept_names = reduce_normalize_filter(eeg, fs, keep_order, idx_map, lo=8, hi=30.0)
 
         # 2) small Laplacian at C3/C4
@@ -427,7 +517,7 @@ def process_all_trials(
             )
             spec_info[f'{center}_spec'] = (f_sp, t_sp, Sxx)
 
-        # 4) AR PSD + bandpower in your online band
+        # 4) AR PSD + bandpower
         ar_results = {}
         if lap3 is not None:
             f_ar3, psd_ar3 = ar_psd_curve(lap3, order=ar_order, fs=fs, worN=ar_worN)
@@ -449,8 +539,8 @@ def process_all_trials(
         ar_results['delta'] = delta
         ar_results['band'] = ar_band
 
-        # 5) figure with top-row specs + bottom-row AR PSD
-        pair_path = os.path.join(fig_dir, f"trial_{trial_key:04d}_C3C4_sLap.png")
+        # 5) figure with cursor/top, specs stacked, PSDs bottom
+        pair_path = os.path.join(fig_dir, f"trial_{int(trial_key):04d}_C3C4_sLap.png")
         plot_trial_spectrogram_and_arpsd(
             trial_id=trial_key,
             label=label,
@@ -461,10 +551,12 @@ def process_all_trials(
             out_path=pair_path,
             fmax_spec=plot_freq_max,
             vmin=None, vmax=None,
-            title_prefix="Small Laplacian"
+            title_prefix="Small Laplacian",
+            cursor_x=cursor_x,
+            cursor_fs=cursor_fs
         )
 
-        # stash outputs for downstream
+        # stash outputs for downstream/introspection
         processed.append({
             'trial_id': trial_key,
             'label': label,
@@ -479,6 +571,10 @@ def process_all_trials(
                 'order': ar_order, 'band': ar_band, 'delta': delta,
                 'C3': ar_results['C3'],  # 'f', 'psd', 'bandpower'
                 'C4': ar_results['C4'],
+            },
+            'cursor': {
+                'x': None if cursor_x is None else np.asarray(cursor_x),
+                'fs': cursor_fs if (cursor_fs is not None) else fs
             }
         })
 
@@ -488,7 +584,7 @@ def process_all_trials(
 # example: run script
 # -----------------------------------------
 if __name__ == "__main__":
-    # tweak this if your file lives elsewhere
+    # tweak this if my file lives elsewhere
     DATA_PATH = "session_data.pkl"
     FIG_DIR   = "figs_mu_8to30"
 

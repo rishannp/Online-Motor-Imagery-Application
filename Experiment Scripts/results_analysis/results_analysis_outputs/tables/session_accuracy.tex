@@ -1,0 +1,34 @@
+% Requires: \usepackage{booktabs, multirow, xcolor, colortbl}
+% Define: \definecolor{accuracycol}{RGB}{133,184,122}
+%
+\begin{table}[htbp]
+\centering
+\small
+\caption{Per-participant liberal accuracy by session and decoder. Values are liberal accuracy (hits + timeout close strong + timeout close weak) / total trials. Dashes indicate no data. Bold indicates the highest value for that participant across all decoders. Chance baseline is 0.50.}
+\label{tab:session_accuracy}
+\begin{tabular}{l|ccccc|cccc|cccc}
+\toprule
+\textbf{Participant} & \multicolumn{5}{c}{\textbf{AR-PSD}} & \multicolumn{4}{c}{\textbf{CSP}} & \multicolumn{4}{c}{\textbf{Graph+ML}} \\
+\cmidrule(lr){2-6} \cmidrule(lr){7-10} \cmidrule(lr){11-14}
+ & S1 & S2 & S3 & S4 & S5 & S2 & S3 & S4 & S5 & S2 & S3 & S4 & S5 \\
+\midrule
+P00 & \textbf{0.82} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P10 & 0.64 & 0.66 & -- & -- & -- & 0.54 & -- & -- & -- & \textbf{0.83} & -- & -- & -- \\
+P03 & \textbf{0.83} & 0.68 & 0.62 & 0.66 & 0.57 & 0.49 & -- & 0.52 & 0.51 & 0.58 & -- & 0.70 & 0.52 \\
+P14 & \textbf{0.70} & 0.62 & 0.42 & -- & -- & 0.48 & 0.50 & -- & -- & 0.51 & 0.50 & -- & -- \\
+P02 & 0.65 & 0.62 & 0.58 & 0.38 & \textbf{0.72} & 0.50 & 0.48 & 0.46 & 0.50 & 0.45 & 0.51 & 0.47 & 0.61 \\
+P08 & \textbf{0.53} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P11 & 0.47 & 0.49 & -- & -- & -- & \textbf{0.60} & -- & -- & -- & 0.50 & -- & -- & -- \\
+P12 & 0.51 & 0.44 & \textbf{0.57} & -- & -- & 0.50 & 0.51 & -- & -- & \textbf{0.57} & 0.50 & -- & -- \\
+P07 & \textbf{0.47} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P05 & \textbf{0.48} & 0.43 & -- & -- & -- & 0.48 & -- & -- & -- & 0.48 & -- & -- & -- \\
+P06 & 0.43 & 0.39 & 0.42 & 0.39 & -- & 0.43 & 0.50 & 0.50 & -- & 0.52 & 0.53 & \textbf{0.56} & -- \\
+P09 & \textbf{0.43} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P13 & \textbf{0.43} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P04 & \textbf{0.36} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+P01 & \textbf{0.34} & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- & -- \\
+\midrule
+\textit{Mean} & \textit{0.54} & \textit{0.54} & \textit{0.52} & \textit{0.48} & \textit{0.65} & \textit{0.50} & \textit{0.50} & \textit{0.49} & \textit{0.51} & \textit{0.55} & \textit{0.51} & \textit{0.58} & \textit{0.56} \\
+\bottomrule
+\end{tabular}
+\end{table}

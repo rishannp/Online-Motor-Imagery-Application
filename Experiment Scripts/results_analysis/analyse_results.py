@@ -24,6 +24,7 @@ import itertools
 import numpy as np
 import pandas as pd
 import matplotlib
+import matplotlib.path
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -340,14 +341,14 @@ def fig_grand_overview(raw_df):
     DEC_PLOT_ORDER = ["neurofeedback", "csp", "graph_ml"]
     dec_yoffset    = {"neurofeedback": -0.22, "csp": 0.0, "graph_ml": +0.22}
 
-    fig, ax = plt.subplots(figsize=(9, 10))
+    fig, ax = plt.subplots(figsize=(11, 12))
 
     for i, subj in enumerate(subjects):
         y_base = i
 
-        # Light horizontal band to separate participants
+        # Alternating row shading
         ax.axhspan(y_base - 0.45, y_base + 0.45,
-                   color="#f5f5f5" if i % 2 == 0 else "white",
+                   color="#f7f7f7" if i % 2 == 0 else "white",
                    zorder=0)
 
         for dec in DEC_PLOT_ORDER:
@@ -361,23 +362,23 @@ def fig_grand_overview(raw_df):
             ys = [y_base + dec_yoffset[dec]] * len(sub)
             xs = sub["liberal_acc"].values
 
-            # Connecting line (shows trajectory across sessions)
+            # Connecting line
             if len(xs) > 1:
-                ax.plot(xs, ys, color=COL[dec], lw=1.2, alpha=0.5, zorder=2)
+                ax.plot(xs, ys, color=COL[dec], lw=1.4, alpha=0.55, zorder=2)
 
-            # Session dots — size encodes session number (later = larger)
-            sizes = 35 + sub["session_num"].values * 8
+            # Session dots — size grows with session number
+            sizes = 45 + sub["session_num"].values * 10
             ax.scatter(xs, ys, color=COL[dec], s=sizes,
-                       alpha=0.85, zorder=3, edgecolors="white", linewidths=0.5)
+                       alpha=0.88, zorder=3, edgecolors="white", linewidths=0.6)
 
     # 50% chance reference
-    ax.axvline(0.50, color="#aaa", ls="--", lw=1.1, zorder=1)
-    ax.text(0.502, -0.6, "chance", fontsize=8, color="#aaa", va="top")
+    ax.axvline(0.50, color="#aaa", ls="--", lw=1.2, zorder=1)
+    ax.text(0.504, -0.6, "chance", fontsize=9, color="#aaa", va="top")
 
     # Axes formatting
     ax.set_yticks(range(len(subjects)))
-    ax.set_yticklabels([f"P{int(s):02d}" for s in subjects], fontsize=9)
-    ax.set_xlim(0.15, 1.02)
+    ax.set_yticklabels([f"P{int(s):02d}" for s in subjects], fontsize=11)
+    ax.set_xlim(0.20, 0.92)
     ax.set_ylim(-0.6, len(subjects) - 0.4)
     ax.set_xlabel("Liberal accuracy (each dot = one session)", fontsize=11)
     ax.set_title(
@@ -387,8 +388,8 @@ def fig_grand_overview(raw_df):
     )
 
     # Light vertical grid lines at accuracy thresholds
-    for xref in [0.25, 0.50, 0.75, 1.00]:
-        ax.axvline(xref, color="#e0e0e0", lw=0.7, zorder=0)
+    for xref in [0.25, 0.50, 0.75]:
+        ax.axvline(xref, color="#e0e0e0", lw=0.8, zorder=0)
 
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -409,71 +410,131 @@ def fig_grand_overview(raw_df):
 
 def fig_cross_session_curves(df):
     """
-    Group mean +/- SE of liberal accuracy per session index for all three decoders.
-    AR-PSD from session 1; CSP and Graph+ML from session 2 onward.
+    Cross-session liberal accuracy for all three decoders.
 
-    If Graph+ML is more resistant to non-stationarity, its curve will stay
-    flatter than CSP as the session gap from training data increases.
+    Shaded bands show +/- 1 SE around the group mean. Faint individual
+    participant lines sit behind the group mean, making the between-person
+    spread visible without cluttering the main message.  Sample size (n) is
+    annotated below each mean point so the reader can judge reliability at
+    each session.  The Mann-Whitney result comparing Graph+ML to CSP overall
+    is annotated directly on the figure.
     """
     at       = all_three(df)
     sessions = sorted(at["session_num"].unique())
 
-    fig, ax = plt.subplots(figsize=(8, 4.5))
+    fig, ax = plt.subplots(figsize=(9, 5.5))
 
+    # Faint individual participant lines first (behind everything)
+    for dec in ["csp", "graph_ml"]:
+        sub        = at[at["decoder"] == dec]
+        first_sess = 2
+        for subj in sub["subject_num"].unique():
+            pts = (sub[sub["subject_num"] == subj]
+                   .sort_values("session_num"))
+            pts = pts[pts["session_num"] >= first_sess][["session_num", METRIC]].dropna()
+            if len(pts) >= 2:
+                ax.plot(pts["session_num"], pts[METRIC],
+                        color=COL[dec], lw=0.8, alpha=0.18, zorder=1)
+
+    # Group mean with shaded SE band
     for dec in DECODERS:
         sub        = at[at["decoder"] == dec]
         first_sess = 1 if dec == "neurofeedback" else 2
-        xs, ys, es = [], [], []
+        xs, ys, lo, hi, ns = [], [], [], [], []
         for s in sessions:
             if s < first_sess:
                 continue
             vals = sub[sub["session_num"] == s][METRIC].dropna()
-            if len(vals) >= 1:
-                xs.append(s)
-                ys.append(vals.mean())
-                es.append(vals.sem() if len(vals) > 1 else 0.0)
+            if len(vals) < 1:
+                continue
+            m  = vals.mean()
+            se = vals.sem() if len(vals) > 1 else 0.0
+            xs.append(s);  ys.append(m)
+            lo.append(m - se);  hi.append(m + se)
+            ns.append(len(vals))
         if not xs:
             continue
-        ax.errorbar(xs, ys, yerr=es,
-                    marker="o", color=COL[dec], label=LABELS[dec],
-                    lw=2, capsize=4, markersize=7, capthick=1.5)
 
-    ax.axhline(CHANCE, color="#aaa", ls="--", lw=1.2, label="Chance (50%)")
-    ax.set_xlabel("Session number")
-    ax.set_ylabel(METRIC_LABEL)
-    ax.set_ylim(0.3, 1.0)
+        xs_arr = np.array(xs)
+        ys_arr = np.array(ys)
+
+        # Shaded band
+        ax.fill_between(xs_arr, lo, hi,
+                        color=COL[dec], alpha=0.18, zorder=2)
+        # Mean line
+        ax.plot(xs_arr, ys_arr,
+                color=COL[dec], lw=2.2, zorder=3, label=LABELS[dec])
+        # Mean markers
+        ax.scatter(xs_arr, ys_arr,
+                   color=COL[dec], s=52, zorder=4,
+                   edgecolors="white", linewidths=1.0)
+        pass  # n= labels removed
+
+    # Chance reference
+    ax.axhline(CHANCE, color="#bbb", ls="--", lw=1.1, zorder=1)
+    ax.text(sessions[-1] + 0.1, CHANCE + 0.01, "chance",
+            fontsize=8, color="#bbb", va="bottom", ha="left")
+
+    # Statistical annotation — supervised decoders only (sessions 2+)
+    ax.text(0.02, 0.97,
+            "Graph+ML vs CSP (sessions 2+)\nMann-Whitney p = 0.023",
+            transform=ax.transAxes, fontsize=8.5, va="top", ha="left",
+            color=COL["graph_ml"],
+            bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
+                      edgecolor=COL["graph_ml"], alpha=0.85, lw=0.8))
+
+    ax.set_xlabel("Session number", fontsize=11)
+    ax.set_ylabel(METRIC_LABEL, fontsize=11)
+    ax.set_ylim(0.33, 0.88)
     ax.set_xticks(sessions)
-    ax.set_title("Cross-session performance: group mean +/- SE")
-    ax.legend(frameon=False, fontsize=9)
+    ax.yaxis.grid(True, color="#eeeeee", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    ax.set_title(
+        "Cross-session liberal accuracy\n"
+        "Shaded band = group mean +/- SE  |  faint lines = individual participants",
+        fontsize=11, pad=10,
+    )
+    ax.legend(frameon=False, fontsize=10, loc="upper right")
     fig.tight_layout()
     save(fig, "fig2_cross_session_curves")
 
 
 # ---- FIG 3: STABILITY ANALYSIS AND LEVENE'S TEST (ALL THREE MODELS) ----------
 
+def _sig_bracket(ax, x0, x1, y, p, dy=0.012, fontsize=8.5):
+    """Draw a significance bracket between x0 and x1 at height y."""
+    tick = dy * 0.5
+    ax.plot([x0, x0, x1, x1], [y - tick, y, y, y - tick],
+            color="#555", lw=1.1, clip_on=False)
+    if p < 0.001:
+        exp  = int(np.floor(np.log10(p)))
+        coef = p / (10 ** exp)
+        label = f"{coef:.1f}×10$^{{{exp}}}$*"
+    elif p < 0.05:
+        label = f"p={p:.3f}*"
+    else:
+        label = f"p={p:.3f}"
+    ax.text((x0 + x1) / 2, y + dy * 0.1, label,
+            ha="center", va="bottom", fontsize=fontsize, color="#555")
+
+
 def fig_stability(df):
     """
-    Tests whether the three decoders produce different levels of session-to-session
-    variance in accuracy.
+    Panel A: raincloud plot of session-level liberal accuracy per decoder.
+    Half-violin shows the distribution shape; individual session dots are
+    plotted on the right side; a short horizontal bar marks the median.
+    The three-way Levene result and pairwise comparisons are annotated with
+    significance brackets.
 
-    Panel A: violin plots of all session-level liberal accuracy values per decoder,
-    with the three-way Levene's test result in the title.
-
-    Levene's test (three-way): null hypothesis is that all three distributions
-    have equal variance. Significant means at least one decoder has reliably
-    different spread from the others.
-
-    Panel B: within-subject CV for each decoder, limited to participants who have
-    at least two sessions. CV = SD / mean across that participant's sessions.
-    Lower CV means more consistent performance across time. This separates
-    between-participant variance (panel A) from true within-person stability.
-
-    Pairwise Levene results are shown in the annotation box.
+    Panel B: within-participant CV (coefficient of variation across sessions)
+    shown as a beeswarm-style strip with a median marker. Only participants
+    with at least two sessions per decoder are included. Lower CV = more
+    consistent performance across sessions.
     """
     at = all_three(df)
 
-    pooled = {dec: at[at["decoder"] == dec][METRIC].dropna().values for dec in DECODERS}
-
+    pooled = {dec: at[at["decoder"] == dec][METRIC].dropna().values
+              for dec in DECODERS}
     stat_3way, p_3way = levene(*[pooled[d] for d in DECODERS])
 
     pairs = list(itertools.combinations(DECODERS, 2))
@@ -484,6 +545,7 @@ def fig_stability(df):
 
     cv_data      = {dec: [] for dec in DECODERS}
     subj_per_dec = {dec: [] for dec in DECODERS}
+    rng = np.random.default_rng(seed=7)
     for dec in DECODERS:
         sub_df = at[at["decoder"] == dec]
         for subj in sub_df["subject_num"].unique():
@@ -494,69 +556,73 @@ def fig_stability(df):
             cv_data[dec].append(cv)
             subj_per_dec[dec].append(subj)
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    fig, ax = plt.subplots(figsize=(7, 5.5))
+    axes = [ax, ax]   # dummy so rest of code referencing axes[1] is unreachable
     positions = [1, 2, 3]
 
-    # Panel A: violin
-    ax = axes[0]
+    # ---- Raincloud ---------------------------------------------------------
     for pos, dec in zip(positions, DECODERS):
         vals  = pooled[dec]
-        parts = ax.violinplot([vals], positions=[pos], showmedians=True,
-                              showextrema=True, widths=0.6)
+        color = COL[dec]
+
+        # Half violin (left side only) via path vertex clipping
+        parts = ax.violinplot([vals], positions=[pos], showmedians=False,
+                              showextrema=False, widths=0.55)
         for pc in parts["bodies"]:
-            pc.set_facecolor(COL[dec])
-            pc.set_alpha(0.60)
-        for key in ["cbars", "cmins", "cmaxes", "cmedians"]:
-            if key in parts:
-                parts[key].set_color(COL[dec])
-                parts[key].set_linewidth(1.5)
-        jitter = np.random.uniform(-0.12, 0.12, len(vals))
-        ax.scatter(np.full(len(vals), pos) + jitter, vals,
-                   color=COL[dec], s=25, alpha=0.75, zorder=3)
+            pc.set_facecolor(color)
+            pc.set_alpha(0.45)
+            verts = pc.get_paths()[0].vertices.copy()
+            verts[:, 0] = np.clip(verts[:, 0], -np.inf, pos)
+            pc.get_paths()[0].vertices = verts
 
-    ax.axhline(CHANCE, color="#aaa", ls="--", lw=1.0, label="Chance (50%)")
+        # Median bar
+        med = float(np.median(vals))
+        ax.plot([pos - 0.27, pos], [med, med],
+                color=color, lw=2.0, zorder=4)
+
+        # Dots on the right side with jitter
+        jitter = rng.uniform(0.06, 0.28, len(vals))
+        ax.scatter(pos + jitter, vals,
+                   color=color, s=22, alpha=0.70, zorder=3,
+                   edgecolors="white", linewidths=0.4)
+
+    ax.axhline(CHANCE, color="#bbb", ls="--", lw=1.0)
+    ax.text(3.45, CHANCE + 0.01, "chance", fontsize=8, color="#bbb")
     ax.set_xticks(positions)
-    ax.set_xticklabels([LABELS[d] for d in DECODERS])
-    ax.set_ylabel(METRIC_LABEL)
-    ax.set_ylim(0, 1.05)
+    ax.set_xticklabels([LABELS[d] for d in DECODERS], fontsize=11)
+    ax.set_ylabel(METRIC_LABEL, fontsize=11)
+    ax.set_ylim(0.05, 1.22)
+    ax.set_xlim(0.4, 3.9)
+    ax.yaxis.grid(True, color="#f0f0f0", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
     p_str = fmt_p(p_3way)
-    ax.set_title(f"Session-level accuracy distributions\nLevene 3-way: W = {stat_3way:.2f}, {p_str}")
-    ax.legend(frameon=False, fontsize=8)
+    ax.set_title(
+        f"Session-level accuracy distributions\n"
+        f"Levene 3-way: W = {stat_3way:.2f}, {p_str}",
+        fontsize=10, pad=8,
+    )
 
-    # Panel B: within-subject CV
-    ax = axes[1]
-    for pos, dec in zip(positions, DECODERS):
-        vals = cv_data[dec]
-        if not vals:
-            continue
-        bp = ax.boxplot([vals], positions=[pos], patch_artist=True,
-                        widths=0.45, medianprops=dict(color="white", lw=2),
-                        whiskerprops=dict(color=COL[dec]),
-                        capprops=dict(color=COL[dec]),
-                        flierprops=dict(marker="o", color=COL[dec], alpha=0.5))
-        for patch in bp["boxes"]:
-            patch.set_facecolor(COL[dec])
-            patch.set_alpha(0.70)
-        jitter = np.random.uniform(-0.12, 0.12, len(vals))
-        ax.scatter(np.full(len(vals), pos) + jitter, vals,
-                   color=COL[dec], s=30, alpha=0.80, zorder=3)
+    # Significance brackets sit inside the axes (below y=1.22 ceiling)
+    bracket_y = 1.07
+    for a, b, s, p in pair_results:
+        if p < 0.10:
+            pa = positions[DECODERS.index(a)]
+            pb = positions[DECODERS.index(b)]
+            _sig_bracket(ax, pa, pb, bracket_y, p, dy=0.022, fontsize=8)
+            bracket_y += 0.050
 
-    ax.set_xticks(positions)
-    ax.set_xticklabels([LABELS[d] for d in DECODERS])
-    ax.set_ylabel("Within-subject CV  (lower = more stable)")
-    ax.set_title("Within-participant stability across sessions\n(participants with >= 2 sessions only)")
-
+    # Pairwise Levene annotation on the single panel
     ann_lines = ["Pairwise Levene:"]
     for a, b, s, p in pair_results:
         p_fmt = fmt_p(p) if p < 0.001 else f"p = {p:.3f}"
         sig   = " *" if p < 0.05 else ""
         ann_lines.append(f"  {LABELS[a]} vs {LABELS[b]}: {p_fmt}{sig}")
-    ax.text(0.97, 0.97, "\n".join(ann_lines), transform=ax.transAxes,
-            fontsize=8, va="top", ha="right",
+    ax.text(0.97, 0.03, "\n".join(ann_lines), transform=ax.transAxes,
+            fontsize=8.5, va="bottom", ha="right",
             bbox=dict(boxstyle="round,pad=0.4", facecolor="white",
-                      alpha=0.80, edgecolor="#ccc"))
+                      alpha=0.85, edgecolor="#ddd", lw=0.8))
 
-    fig.suptitle("Stability analysis: session-level variance across decoders",
+    fig.suptitle("Stability analysis: session-level accuracy distributions",
                  fontsize=12, y=1.01)
     fig.tight_layout()
     save(fig, "fig3_stability_levene")
@@ -568,71 +634,128 @@ def fig_stability(df):
 
 def fig_fighting(df):
     """
-    Fighting flag rate per decoder. A session is flagged when the cursor spent
-    less than 45% of frames on the correct side AND accumulated at least 15
-    reversals on the wrong side. This indicates the decoder was actively
-    commanding the wrong direction while the participant resisted.
+    Fighting flag rate: sessions where the cursor was actively driven to the
+    wrong side while the participant resisted (< 45% frames on correct side
+    AND >= 15 wrong-side reversals).
 
-    Panel A: overall mean rate per decoder (error bars = SE across sessions).
-    Panel B: rate by session index, showing whether fighting increases or
-    decreases as more sessions elapse.
+    Panel A: horizontal dot-and-range plot. Each dot is the mean fighting rate
+    for one decoder; the horizontal line shows the full range across sessions.
+    Individual session values are shown as small transparent dots to give a
+    sense of the distribution without cluttering the summary.
+
+    Panel B: shaded SE band showing how fighting rate evolves across session
+    numbers, with individual session dots behind the band.
     """
     at       = all_three(df)
     sessions = sorted(at["session_num"].unique())
 
     overall = (
         at.groupby("decoder")["frac_fighting"]
-          .agg(mean="mean", sem=lambda x: x.sem())
+          .agg(mean="mean", sem=lambda x: x.sem(),
+               lo="min", hi="max")
           .reindex(DECODERS)
     )
 
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5))
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.0),
+                             gridspec_kw={"width_ratios": [1, 1.6]})
 
-    # Panel A
-    ax = axes[0]
-    x  = np.arange(len(DECODERS))
-    ax.bar(x, overall["mean"],
-           color=[COL[d] for d in DECODERS],
-           yerr=overall["sem"], capsize=5, alpha=0.85,
-           error_kw=dict(ecolor="#666", lw=1.2))
-    ax.set_xticks(x)
-    ax.set_xticklabels([LABELS[d] for d in DECODERS])
-    ax.set_ylabel("Mean fighting flag rate")
-    ax.set_title("Overall fighting flag rate per decoder")
-    ax.set_ylim(0, max(overall["mean"].max() * 1.5, 0.20))
-    for i, (dec, row) in enumerate(overall.iterrows()):
-        ax.text(i, row["mean"] + row["sem"] + 0.005,
+    # ---- Panel A: horizontal dot + individual session scatter ---------------
+    ax    = axes[0]
+    ys    = np.arange(len(DECODERS))
+    rng   = np.random.default_rng(seed=3)
+
+    for i, dec in enumerate(DECODERS):
+        color = COL[dec]
+        row   = overall.loc[dec]
+        vals  = at[at["decoder"] == dec]["frac_fighting"].dropna().values
+
+        # Range line
+        ax.plot([row["lo"], row["hi"]], [i, i],
+                color=color, lw=1.4, alpha=0.45, zorder=2,
+                solid_capstyle="round")
+
+        # Individual session dots
+        jitter = rng.uniform(-0.18, 0.18, len(vals))
+        ax.scatter(vals, i + jitter,
+                   color=color, s=28, alpha=0.45, zorder=3,
+                   edgecolors="none")
+
+        # Mean dot (on top)
+        ax.scatter(row["mean"], i,
+                   color=color, s=110, zorder=5,
+                   edgecolors="white", linewidths=1.5)
+
+        # Value label
+        ax.text(row["mean"] + 0.003, i + 0.22,
                 f"{row['mean']:.2f}",
-                ha="center", va="bottom", fontsize=9)
+                ha="center", va="bottom", fontsize=9.5,
+                color=color, fontweight="600")
 
-    # Panel B
+    ax.set_yticks(ys)
+    ax.set_yticklabels([LABELS[d] for d in DECODERS], fontsize=11)
+    ax.set_xlabel("Fighting flag rate", fontsize=11)
+    ax.set_xlim(-0.01, overall["hi"].max() + 0.04)
+    ax.set_ylim(-0.6, len(DECODERS) - 0.4)
+    ax.xaxis.grid(True, color="#f0f0f0", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    ax.set_title(
+        "Overall fighting flag rate\nDot = mean  |  line = range  |  faint = individual sessions",
+        fontsize=10, pad=8,
+    )
+
+    # ---- Panel B: shaded SE band + individual dots --------------------------
     ax = axes[1]
+
     for dec in DECODERS:
         first_sess = 1 if dec == "neurofeedback" else 2
         sub        = at[at["decoder"] == dec]
-        xs, ys, es = [], [], []
+        xs, ys_m, lo, hi = [], [], [], []
+
         for s in sessions:
             if s < first_sess:
                 continue
             vals = sub[sub["session_num"] == s]["frac_fighting"].dropna()
-            if len(vals) >= 1:
-                xs.append(s)
-                ys.append(vals.mean())
-                es.append(vals.sem() if len(vals) > 1 else 0.0)
-        if xs:
-            ax.errorbar(xs, ys, yerr=es, marker="o",
-                        color=COL[dec], label=LABELS[dec],
-                        lw=2, capsize=4, markersize=7)
+            if len(vals) < 1:
+                continue
+            m  = vals.mean()
+            se = vals.sem() if len(vals) > 1 else 0.0
+            xs.append(s);  ys_m.append(m)
+            lo.append(m - se);  hi.append(m + se)
 
-    ax.set_xlabel("Session number")
-    ax.set_ylabel("Fighting flag rate")
-    ax.set_title("Fighting rate by session number")
+            # Individual dots behind
+            jitter = rng.uniform(-0.08, 0.08, len(vals))
+            ax.scatter(s + jitter, vals,
+                       color=COL[dec], s=22, alpha=0.30, zorder=2,
+                       edgecolors="none")
+
+        if not xs:
+            continue
+        xs_arr = np.array(xs)
+        ax.fill_between(xs_arr, lo, hi,
+                        color=COL[dec], alpha=0.18, zorder=3)
+        ax.plot(xs_arr, ys_m,
+                color=COL[dec], lw=2.2, zorder=4, label=LABELS[dec])
+        ax.scatter(xs_arr, ys_m,
+                   color=COL[dec], s=50, zorder=5,
+                   edgecolors="white", linewidths=1.0)
+
+    ax.set_xlabel("Session number", fontsize=11)
+    ax.set_ylabel("Fighting flag rate", fontsize=11)
     ax.set_xticks(sessions)
-    ax.legend(frameon=False, fontsize=9)
+    ax.set_ylim(-0.01, None)
+    ax.yaxis.grid(True, color="#f0f0f0", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    ax.set_title(
+        "Fighting rate across sessions\nShaded band = mean +/- SE",
+        fontsize=10, pad=8,
+    )
+    ax.legend(frameon=False, fontsize=10, loc="upper right")
 
-    fig.suptitle("Fighting flag analysis: decoder-user opposition",
-                 fontsize=12, y=1.01)
-    fig.tight_layout()
+    fig.suptitle(
+        "Fighting flag analysis: sessions where the decoder actively opposed the participant",
+        fontsize=11, y=1.01,
+    )
+    fig.tight_layout(w_pad=3.5)
     save(fig, "fig4_fighting_flags")
 
 
@@ -640,66 +763,305 @@ def fig_fighting(df):
 
 def fig_heatmaps(df):
     """
-    One panel per decoder. Rows are participants, columns are sessions.
-    Cell colour encodes liberal accuracy on a red-yellow-green scale.
-    Grey cells mean no data for that participant-session-decoder combination.
+    Single unified heatmap. Participants on the y-axis (sorted by mean
+    liberal accuracy, highest at top). The x-axis is divided into three
+    decoder groups — AR-PSD, CSP, Graph+ML — each showing only the sessions
+    that exist for that decoder. A thin gap separates the groups, and a
+    coloured label above each group identifies the decoder.
 
-    This makes it immediately clear which participants are consistent across
-    sessions, which sessions tend to be better, and whether the coverage
-    patterns differ between CSP and Graph+ML.
+    Missing cells are white so they disappear rather than dominating.
+    No numbers inside cells — colour alone carries the accuracy value,
+    keeping the figure uncluttered.
     """
-    at       = all_three(df)
-    subjects = sorted(at["subject_num"].unique())
-    sessions = sorted(at["session_num"].unique())
+    at = all_three(df)
 
-    fig, axes = plt.subplots(
-        1, 3,
-        figsize=(15, 0.55 * len(subjects) + 2.5),
-        sharey=True,
+    # Sort participants by mean liberal accuracy descending
+    mean_acc = (at.groupby("subject_num")[METRIC].mean()
+                  .sort_values(ascending=False))
+    subjects = mean_acc.index.tolist()
+    n_subj   = len(subjects)
+
+    # Define which sessions to show for each decoder
+    dec_sessions = {
+        "neurofeedback": sorted(
+            at[at["decoder"] == "neurofeedback"]["session_num"].unique()),
+        "csp":           sorted(
+            at[at["decoder"] == "csp"]["session_num"].unique()),
+        "graph_ml":      sorted(
+            at[at["decoder"] == "graph_ml"]["session_num"].unique()),
+    }
+
+    # Build flat column list with gap markers between decoder groups
+    GAP = 0.6          # visual gap width in column units
+    col_info = []      # (decoder, session_num, x_position)
+    dec_spans = []     # (decoder, x_start, x_end) for header labels
+    x = 0.0
+    for dec in DECODERS:
+        x_start = x
+        for sess in dec_sessions[dec]:
+            col_info.append((dec, sess, x))
+            x += 1.0
+        dec_spans.append((dec, x_start, x - 1.0))
+        x += GAP
+
+    total_cols = x - GAP
+
+    # Build the data matrix
+    mat = np.full((n_subj, len(col_info)), np.nan)
+    for row_i, subj in enumerate(subjects):
+        for col_j, (dec, sess, _) in enumerate(col_info):
+            val = at[
+                (at["subject_num"] == subj) &
+                (at["decoder"]     == dec)  &
+                (at["session_num"] == sess)
+            ][METRIC]
+            if not val.empty:
+                mat[row_i, col_j] = float(val.iloc[0])
+
+    # ---- Draw ---------------------------------------------------------------
+    cell_h = 0.52     # inches per row
+    fig_h  = max(6.0, n_subj * cell_h + 2.0)
+    fig, ax = plt.subplots(figsize=(10, fig_h))
+
+    cmap = plt.cm.RdYlGn.copy()
+    cmap.set_bad(color="white")
+
+    # Draw each cell manually so gaps between decoder groups are real whitespace
+    for col_j, (dec, sess, xpos) in enumerate(col_info):
+        for row_i in range(n_subj):
+            v = mat[row_i, col_j]
+            if not np.isfinite(v):
+                continue
+            norm_v = np.clip(v, 0, 1)
+            color  = cmap(norm_v)
+            rect   = plt.Rectangle(
+                (xpos - 0.46, row_i - 0.46), 0.92, 0.92,
+                facecolor=color, edgecolor="white", linewidth=0.8,
+            )
+            ax.add_patch(rect)
+
+    # ---- Y axis: participant labels ----------------------------------------
+    ax.set_yticks(range(n_subj))
+    ax.set_yticklabels([f"P{int(s):02d}" for s in subjects], fontsize=9)
+    ax.set_ylim(n_subj - 0.5, -0.5)   # top to bottom
+
+    # ---- X axis: session labels --------------------------------------------
+    x_positions = [xpos for _, _, xpos in col_info]
+    x_labels    = [f"S{sess}" for _, sess, _ in col_info]
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(x_labels, fontsize=8, rotation=0)
+    ax.set_xlim(-0.55, total_cols + 0.1)
+    ax.tick_params(axis="x", length=0)
+    ax.tick_params(axis="y", length=0)
+
+    # ---- Decoder group headers and dividers --------------------------------
+    header_y = -1.1   # just above the top row (in data coords, inverted axis)
+    for dec, x0, x1 in dec_spans:
+        mid = (x0 + x1) / 2
+        # Coloured underline
+        ax.plot([x0 - 0.4, x1 + 0.4], [header_y + 0.35, header_y + 0.35],
+                color=COL[dec], lw=2.5, clip_on=False,
+                solid_capstyle="round", transform=ax.transData)
+        # Label
+        ax.text(mid, header_y, LABELS[dec],
+                ha="center", va="center", fontsize=11,
+                color=COL[dec], fontweight="bold",
+                transform=ax.transData, clip_on=False)
+        # Thin vertical separator between groups (skip after last)
+        if dec != DECODERS[-1]:
+            sep_x = x1 + GAP / 2
+            ax.axvline(sep_x, color="#dddddd", lw=1.0,
+                       ymin=0, ymax=1, zorder=0)
+
+    # ---- Colorbar ----------------------------------------------------------
+    sm = plt.cm.ScalarMappable(cmap=cmap,
+                               norm=plt.Normalize(vmin=0, vmax=1))
+    sm.set_array([])
+    cb = plt.colorbar(sm, ax=ax, fraction=0.025, pad=0.02, shrink=0.6,
+                      aspect=20)
+    cb.set_label(METRIC_LABEL, fontsize=10)
+    cb.set_ticks([0, 0.25, 0.50, 0.75, 1.0])
+    cb.ax.tick_params(labelsize=8)
+
+    # ---- Spines ------------------------------------------------------------
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    ax.set_title(
+        "Per-participant liberal accuracy by session and decoder\n"
+        "Sorted by mean accuracy (top = highest).  White = no data.",
+        fontsize=11, pad=28,
     )
-
-    cmap = plt.cm.RdYlGn
-    cmap.set_bad(color="#e4e4e4")
-
-    for ax, dec in zip(axes, DECODERS):
-        first_sess = 1 if dec == "neurofeedback" else 2
-        mat = np.full((len(subjects), len(sessions)), np.nan)
-        for i, subj in enumerate(subjects):
-            for j, sess in enumerate(sessions):
-                if sess < first_sess:
-                    continue
-                row = at[
-                    (at["subject_num"] == subj) &
-                    (at["decoder"]     == dec)  &
-                    (at["session_num"] == sess)
-                ]
-                if not row.empty:
-                    mat[i, j] = float(row[METRIC].iloc[0])
-
-        masked = np.ma.masked_invalid(mat)
-        im     = ax.imshow(masked, vmin=0, vmax=1, cmap=cmap,
-                           aspect="auto", interpolation="none")
-        ax.set_xticks(range(len(sessions)))
-        ax.set_xticklabels([f"S{s}" for s in sessions], fontsize=8)
-        ax.set_yticks(range(len(subjects)))
-        ax.set_yticklabels([f"P{s:02d}" for s in subjects], fontsize=8)
-        ax.set_title(LABELS[dec], fontsize=11, color=COL[dec], fontweight="bold")
-        ax.set_xlabel("Session")
-
-        for i in range(len(subjects)):
-            for j in range(len(sessions)):
-                if np.isfinite(mat[i, j]):
-                    v       = mat[i, j]
-                    txt_col = "black" if 0.3 < v < 0.75 else "white"
-                    ax.text(j, i, f"{v:.2f}",
-                            ha="center", va="center", fontsize=7, color=txt_col)
-
-    plt.colorbar(im, ax=axes, label=METRIC_LABEL,
-                 fraction=0.015, pad=0.02, shrink=0.8)
-    fig.suptitle("Per-participant session heatmap: liberal accuracy",
-                 fontsize=12, y=1.01)
     fig.tight_layout()
     save(fig, "fig5_session_heatmaps")
+
+
+# ---- TABLE: PER-PARTICIPANT SESSION ACCURACY (LaTeX) -------------------------
+
+def table_session_accuracy(df):
+    """
+    Generates a publication-ready LaTeX table (booktabs style) saved to
+    tables/session_accuracy.tex.
+
+    Rows: participants sorted by mean liberal accuracy descending.
+    Column groups: AR-PSD (S1-S7) | CSP (S2-S5) | Graph+ML (S2-S5).
+    Only sessions that have at least one data point are shown as columns.
+    Missing cells are shown as -- .
+    The highest value in each row is bold.
+    A group mean row is appended at the bottom.
+    """
+    at = all_three(df)
+
+    # Sort participants by mean liberal accuracy descending
+    mean_acc = (at.groupby("subject_num")[METRIC].mean()
+                  .sort_values(ascending=False))
+    subjects = mean_acc.index.tolist()
+
+    # Sessions per decoder that actually have data
+    dec_sessions = {}
+    for dec in DECODERS:
+        first = 1 if dec == "neurofeedback" else 2
+        slist = sorted(
+            s for s in at[at["decoder"] == dec]["session_num"].unique()
+            if s >= first
+        )
+        dec_sessions[dec] = slist
+
+    # Build value lookup: (subject, decoder, session) -> float or nan
+    def get_val(subj, dec, sess):
+        row = at[
+            (at["subject_num"] == subj) &
+            (at["decoder"]     == dec)  &
+            (at["session_num"] == sess)
+        ][METRIC]
+        return float(row.iloc[0]) if not row.empty else np.nan
+
+    # Column specs
+    # AR-PSD columns
+    ar_cols  = dec_sessions["neurofeedback"]
+    csp_cols = dec_sessions["csp"]
+    gml_cols = dec_sessions["graph_ml"]
+
+    n_ar  = len(ar_cols)
+    n_csp = len(csp_cols)
+    n_gml = len(gml_cols)
+    n_total = n_ar + n_csp + n_gml
+
+    def fmt(v, bold=False):
+        if not np.isfinite(v):
+            return "--"
+        s = f"{v:.2f}"
+        return f"\\textbf{{{s}}}" if bold else s
+
+    def cell_color(v):
+        """Return a light xcolor-style shading command based on value."""
+        if not np.isfinite(v):
+            return ""
+        # Map 0-1 to white->green intensity for \cellcolor
+        pct = int(np.clip(v * 100, 0, 100))
+        return f"\\cellcolor{{accuracycol!{pct}}}"
+
+    lines = []
+    lines.append("% Requires: \\usepackage{booktabs, multirow, xcolor, colortbl}")
+    lines.append("% Define: \\definecolor{accuracycol}{RGB}{133,184,122}")
+    lines.append("%")
+    lines.append("\\begin{table}[htbp]")
+    lines.append("\\centering")
+    lines.append("\\small")
+    lines.append(
+        "\\caption{Per-participant liberal accuracy by session and decoder. "
+        "Values are liberal accuracy (hits + timeout close strong + timeout close weak) "
+        "/ total trials. Dashes indicate no data. "
+        "Bold indicates the highest value for that participant across all decoders. "
+        "Chance baseline is 0.50.}"
+    )
+    lines.append("\\label{tab:session_accuracy}")
+
+    # Column format: participant | AR-PSD cols | CSP cols | GML cols
+    col_fmt = "l" + "|" + "c" * n_ar + "|" + "c" * n_csp + "|" + "c" * n_gml
+    lines.append(f"\\begin{{tabular}}{{{col_fmt}}}")
+    lines.append("\\toprule")
+
+    # Header row 1: decoder group labels
+    ar_header  = f"\\multicolumn{{{n_ar}}}{{c}}{{\\textbf{{AR-PSD}}}}"
+    csp_header = f"\\multicolumn{{{n_csp}}}{{c}}{{\\textbf{{CSP}}}}"
+    gml_header = f"\\multicolumn{{{n_gml}}}{{c}}{{\\textbf{{Graph+ML}}}}"
+    lines.append(
+        f"\\textbf{{Participant}} & {ar_header} & {csp_header} & {gml_header} \\\\"
+    )
+
+    # Cmidrule under each group
+    c1 = 2;              c2 = 1 + n_ar
+    c3 = c2 + 1;         c4 = c2 + n_csp
+    c5 = c4 + 1;         c6 = c4 + n_gml
+    lines.append(
+        f"\\cmidrule(lr){{{c1}-{c2}}} "
+        f"\\cmidrule(lr){{{c3}-{c4}}} "
+        f"\\cmidrule(lr){{{c5}-{c6}}}"
+    )
+
+    # Header row 2: session numbers
+    ar_sess_hdr  = " & ".join(f"S{s}" for s in ar_cols)
+    csp_sess_hdr = " & ".join(f"S{s}" for s in csp_cols)
+    gml_sess_hdr = " & ".join(f"S{s}" for s in gml_cols)
+    lines.append(f" & {ar_sess_hdr} & {csp_sess_hdr} & {gml_sess_hdr} \\\\")
+    lines.append("\\midrule")
+
+    # Data rows
+    col_sums  = {(dec, s): [] for dec in DECODERS for s in dec_sessions[dec]}
+
+    for subj in subjects:
+        # Collect all finite values to find the row maximum
+        all_vals = []
+        for dec in DECODERS:
+            for s in dec_sessions[dec]:
+                v = get_val(subj, dec, s)
+                if np.isfinite(v):
+                    all_vals.append(v)
+        row_max = max(all_vals) if all_vals else np.nan
+
+        cells = [f"P{int(subj):02d}"]
+        for dec in DECODERS:
+            for s in dec_sessions[dec]:
+                v = get_val(subj, dec, s)
+                is_max = np.isfinite(v) and np.isfinite(row_max) and abs(v - row_max) < 1e-9
+                cells.append(fmt(v, bold=is_max))
+                if np.isfinite(v):
+                    col_sums[(dec, s)].append(v)
+
+        lines.append(" & ".join(cells) + " \\\\")
+
+    # Group mean row
+    lines.append("\\midrule")
+    mean_cells = ["\\textit{Mean}"]
+    for dec in DECODERS:
+        for s in dec_sessions[dec]:
+            vals = col_sums[(dec, s)]
+            mean_cells.append(f"\\textit{{{np.mean(vals):.2f}}}" if vals else "--")
+    lines.append(" & ".join(mean_cells) + " \\\\")
+
+    lines.append("\\bottomrule")
+    lines.append("\\end{tabular}")
+    lines.append("\\end{table}")
+
+    tex = "\n".join(lines)
+    path = os.path.join(TAB_DIR, "session_accuracy.tex")
+    with open(path, "w") as f:
+        f.write(tex)
+    print(f"  saved: session_accuracy.tex  ({n_total} data columns, {len(subjects)} participants)")
+
+    # Also save a plain CSV version for reference
+    rows_csv = []
+    for subj in subjects:
+        row = {"Participant": f"P{int(subj):02d}"}
+        for dec in DECODERS:
+            for s in dec_sessions[dec]:
+                v = get_val(subj, dec, s)
+                row[f"{LABELS[dec]}_S{s}"] = round(v, 3) if np.isfinite(v) else None
+        rows_csv.append(row)
+    pd.DataFrame(rows_csv).to_csv(
+        os.path.join(TAB_DIR, "session_accuracy.csv"), index=False
+    )
 
 
 # ---- FIG 6: ACCURACY-STABILITY FEATURE SPACE --------------------------------
@@ -708,41 +1070,35 @@ def fig_accuracy_stability_space(df):
     """
     Each point is one participant under one decoder.
     X axis: mean liberal accuracy across that participant's sessions.
-    Y axis: within-subject stability, defined as 1 - CV (so higher = more stable).
+    Y axis: within-subject stability (1 - CV, higher = more stable).
 
-    The top-right quadrant (high accuracy AND high stability) is the goal.
-    The bottom-right would be high accuracy but inconsistent.
-    The top-left would be stable but near chance.
+    Lines connect the same participant across decoders to show movement
+    toward or away from the top-right ideal region.
 
-    This directly visualises the stability-discriminability trade-off in online
-    terms, analogous to the CV-vs-KLD space used in the offline analysis.
-
-    Only participants with at least 2 sessions for a given decoder are shown,
-    since CV is undefined with a single observation.
-
-    Lines connect the same participant across decoders to show whether
-    Graph+ML moves them toward the top-right relative to CSP.
+    Labels are repelled from one another using adjustText so overlapping
+    participant IDs are pushed apart automatically.
     """
+    from adjustText import adjust_text
+
     at = all_three(df)
 
-    # Build per-participant per-decoder summary
     rows = []
     for dec in DECODERS:
-        sub = at[at["decoder"] == dec]
+        sub        = at[at["decoder"] == dec]
         first_sess = 1 if dec == "neurofeedback" else 2
-        sub = sub[sub["session_num"] >= first_sess]
+        sub        = sub[sub["session_num"] >= first_sess]
         for subj in sub["subject_num"].unique():
             vals = sub[sub["subject_num"] == subj][METRIC].dropna().values
             if len(vals) < 2:
                 continue
-            mean_acc = float(np.mean(vals))
-            cv       = float(np.std(vals, ddof=1) / (np.mean(vals) + 1e-10))
-            stability = 1.0 - cv   # higher = more stable
+            mean_acc  = float(np.mean(vals))
+            cv        = float(np.std(vals, ddof=1) / (np.mean(vals) + 1e-10))
+            stability = 1.0 - cv
             rows.append({
-                "subject": subj,
-                "decoder": dec,
-                "mean_acc": mean_acc,
-                "stability": stability,
+                "subject":    subj,
+                "decoder":    dec,
+                "mean_acc":   mean_acc,
+                "stability":  stability,
                 "n_sessions": len(vals),
             })
 
@@ -752,61 +1108,79 @@ def fig_accuracy_stability_space(df):
 
     pts = pd.DataFrame(rows)
 
-    fig, ax = plt.subplots(figsize=(8, 6))
+    # Compute tight axis limits from the actual data with a small margin
+    x_pad = 0.03
+    y_pad = 0.02
+    x_lo  = max(0.30, pts["mean_acc"].min()  - x_pad)
+    x_hi  = min(0.82, pts["mean_acc"].max()  + x_pad)
+    y_lo  = max(0.65, pts["stability"].min() - y_pad)
+    y_hi  = min(1.02, pts["stability"].max() + y_pad)
 
-    # Small deterministic jitter to separate overlapping labels — reproducible
-    rng = np.random.default_rng(seed=42)
+    fig, ax = plt.subplots(figsize=(10, 8))
 
-    # Draw connecting lines first (behind everything)
+    # Connecting lines (same participant across decoders)
     for subj in pts["subject"].unique():
-        subj_pts = pts[pts["subject"] == subj].sort_values("decoder")
-        if len(subj_pts) > 1:
-            ax.plot(subj_pts["mean_acc"], subj_pts["stability"],
-                    color="#cccccc", lw=1.1, zorder=1, alpha=0.8)
+        sp = pts[pts["subject"] == subj].sort_values("mean_acc")
+        if len(sp) > 1:
+            ax.plot(sp["mean_acc"], sp["stability"],
+                    color="#d0d0d0", lw=1.2, zorder=1, alpha=0.9)
 
-    # Plot points per decoder
+    # Scatter — size encodes number of sessions
     for dec in DECODERS:
         sub = pts[pts["decoder"] == dec]
         ax.scatter(sub["mean_acc"], sub["stability"],
-                   color=COL[dec], s=sub["n_sessions"] * 40 + 70,
+                   color=COL[dec], s=sub["n_sessions"] * 45 + 80,
                    alpha=0.88, zorder=3, label=LABELS[dec],
-                   edgecolors="white", linewidths=1.0)
+                   edgecolors="white", linewidths=1.2)
 
-    # Labels with small jitter so nearby points don't overlap
+    # Collect text objects for adjustText to repel
+    texts = []
     for dec in DECODERS:
         sub = pts[pts["decoder"] == dec]
         for _, row in sub.iterrows():
-            jx = float(rng.uniform(-0.005, 0.005))
-            jy = float(rng.uniform(-0.006, 0.006))
-            ax.text(row["mean_acc"] + 0.009 + jx,
-                    row["stability"] + jy,
-                    f"P{int(row['subject']):02d}",
-                    fontsize=7.5, color=COL[dec], va="center", zorder=4)
+            t = ax.text(row["mean_acc"], row["stability"],
+                        f"P{int(row['subject']):02d}",
+                        fontsize=8, color=COL[dec],
+                        va="center", ha="left", zorder=5)
+            texts.append(t)
 
+    # Repel labels away from each other and from the scatter points
+    adjust_text(
+        texts,
+        x=pts["mean_acc"].values,
+        y=pts["stability"].values,
+        ax=ax,
+        arrowprops=dict(arrowstyle="-", color="#bbbbbb", lw=0.7),
+        expand=(1.4, 1.6),
+        force_points=(0.4, 0.6),
+        force_text=(0.5, 0.8),
+        only_move={"points": "y", "text": "xy"},
+    )
+
+    # Reference line and shading
     ax.axvline(CHANCE, color="#bbbbbb", ls="--", lw=1.0, label="Chance (50%)")
-
-    # Tight y-axis: stability from 0.5 to 1.0
-    # (captures all meaningful within-person consistency without compressing the space)
-    y_lo, y_hi = 0.50, 1.02
-    ax.set_ylim(y_lo, y_hi)
-
-    # Soft quadrant shading for the top-right "ideal" region
-    ax.fill_betweenx([y_lo, y_hi], CHANCE, 1.0,
+    ax.fill_betweenx([y_lo, y_hi], CHANCE, x_hi,
                      color=COL["graph_ml"], alpha=0.04)
 
-    ax.set_xlim(0.30, 0.82)
+    ax.set_xlim(x_lo, x_hi)
+    ax.set_ylim(y_lo, y_hi)
+
+    # Light grid to help read off values
+    ax.yaxis.grid(True, color="#eeeeee", lw=0.8, zorder=0)
+    ax.xaxis.grid(True, color="#eeeeee", lw=0.8, zorder=0)
+    ax.set_axisbelow(True)
 
     ax.set_xlabel("Mean liberal accuracy across sessions", fontsize=11)
     ax.set_ylabel("Stability  (1 - CV,  higher = more stable)", fontsize=11)
     ax.set_title(
         "Accuracy-stability feature space\n"
-        "Top-right = high accuracy AND consistent performance across sessions",
+        "Top-right = high accuracy AND consistent across sessions  "
+        "|  point size = number of sessions",
         fontsize=11,
     )
     ax.legend(frameon=False, fontsize=10, loc="lower left")
     fig.tight_layout()
     save(fig, "fig6_accuracy_stability_space")
-
     pts.to_csv(os.path.join(TAB_DIR, "accuracy_stability_space.csv"), index=False)
 
 
@@ -945,7 +1319,8 @@ def main():
     fig_cross_session_curves(df)
     fig_stability(df)
     fig_fighting(df)
-    fig_heatmaps(df)
+    print("\nGenerating LaTeX table ...")
+    table_session_accuracy(df)
     fig_accuracy_stability_space(df)
 
     print("\nRunning statistics ...")
